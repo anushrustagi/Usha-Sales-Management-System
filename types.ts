@@ -188,6 +188,19 @@ export interface PlannedTask {
   description?: string;
   priority: PriorityLevel;
   status: 'PENDING' | 'COMPLETED';
+  projectId?: string; // Optional: Link to project
+}
+
+export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
+
+export interface Project {
+  id: string;
+  name: string;
+  description?: string;
+  startDate: string;
+  endDate: string;
+  status: ProjectStatus;
+  color: string;
 }
 
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'HALF_DAY';
@@ -214,5 +227,6 @@ export interface AppData {
   productCategories: string[];
   budgetGoals: BudgetGoal[];
   plannedTasks: PlannedTask[];
+  projects: Project[];
   attendance: AttendanceRecord[];
 }
