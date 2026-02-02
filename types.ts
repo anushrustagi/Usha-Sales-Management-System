@@ -84,7 +84,12 @@ export interface OtherParty {
   phone?: string;
   outstandingBalance: number;
   remarks?: string;
+  // Payroll specific fields
   monthlySalary?: number;
+  salaryCycleDate?: number; // Day of month (1-31)
+  designation?: string;
+  joiningDate?: string;
+  weeklyOffDay?: 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
   salaryDueDate?: number;
 }
 
@@ -203,7 +208,7 @@ export interface Project {
   color: string;
 }
 
-export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'HALF_DAY';
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'WEEKLY_OFF' | 'HOLIDAY';
 
 export interface AttendanceRecord {
   id: string;

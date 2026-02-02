@@ -5,7 +5,7 @@ import {
   Users, TrendingUp, Calendar, ShoppingBag, Package, Activity, Search, 
   Sparkles, Loader2, Zap, ArrowLeft, ArrowUpRight, BarChart3, Clock, 
   MessageSquare, ChevronRight, Filter, IndianRupee, Trash2, MapPinned, Tag,
-  Download, FileSpreadsheet, Send, UserCheck, Map
+  Download, FileSpreadsheet, Send, UserCheck, Map as MapIcon
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -105,7 +105,7 @@ const WalkinReports: React.FC<WalkinReportsProps> = ({ data, updateData }) => {
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-           <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3"><div className="p-2.5 bg-orange-500 rounded-2xl shadow-xl"><Map className="text-white" size={24}/></div>Market Penetration Analysis</h2>
+           <h2 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3"><div className="p-2.5 bg-orange-500 rounded-2xl shadow-xl"><MapIcon className="text-white" size={24}/></div>Market Penetration Analysis</h2>
            <p className="text-slate-400 text-[11px] mt-1 font-black uppercase tracking-[0.2em]">Geographic Catchment & Lead Intelligence</p>
         </div>
         <div className="flex gap-4 w-full md:w-auto">
