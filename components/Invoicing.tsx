@@ -12,6 +12,8 @@ import {
   Eraser, Sparkles, ZapIcon, FileSpreadsheet, ArrowRight, Activity, CalendarDays,
   Download, Map as MapIcon, ShieldAlert, ChevronDown
 } from 'lucide-react';
+// @ts-ignore
+import html2pdf from 'html2pdf.js';
 
 interface InvoicingProps {
   data: AppData;
@@ -28,9 +30,10 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
   const [gstEnabled, setGstEnabled] = useState(true);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [amountPaid, setAmountPaid] = useState<number>(0);
-  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null); // For Print Preview
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null); // For Print Preview & PDF
   const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null); // For View Details Modal
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null); // For Edit Mode
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   
   // Modals
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
@@ -68,6 +71,29 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
         amountPaid, type, paymentMode
     });
     setTimeout(() => window.print(), 100);
+  };
+
+  const handleDownloadPdf = (invoice: Invoice) => {
+    setViewingInvoice(invoice);
+    setIsGeneratingPdf(true);
+    // Allow DOM to render the invoice in the hidden container
+    setTimeout(() => {
+      const element = document.getElementById('printable-invoice');
+      if (element) {
+        const opt = {
+          margin: 10,
+          filename: `Invoice_${invoice.invoiceNo}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save().then(() => {
+          setIsGeneratingPdf(false);
+          // Only clear if we aren't also viewing it elsewhere, but typically safe to clear
+          setViewingInvoice(null);
+        });
+      }
+    }, 100);
   };
 
   const handleSaveInvoice = () => {
@@ -407,6 +433,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                           <button onClick={() => setDetailInvoice(inv)} className="p-3 bg-white text-slate-300 hover:text-blue-600 rounded-xl border border-slate-100 shadow-sm active:scale-90 transition-all" title="View Details"><Eye size={16}/></button>
                           <button onClick={() => handleEditInvoice(inv)} className="p-3 bg-white text-slate-300 hover:text-amber-600 rounded-xl border border-slate-100 shadow-sm active:scale-90 transition-all" title="Edit Voucher"><Edit2 size={16}/></button>
                           <button onClick={() => handlePrint(inv)} className="p-3 bg-white text-slate-300 hover:text-slate-600 rounded-xl border border-slate-100 shadow-sm active:scale-90 transition-all" title="Print"><Printer size={16}/></button>
+                          <button onClick={() => handleDownloadPdf(inv)} className="p-3 bg-white text-slate-300 hover:text-indigo-600 rounded-xl border border-slate-100 shadow-sm active:scale-90 transition-all" title="Download PDF"><Download size={16}/></button>
                           <button onClick={() => handleDeleteInvoice(inv)} className="p-3 bg-white text-slate-300 hover:text-rose-600 rounded-xl border border-slate-100 shadow-sm active:scale-90 transition-all" title="Delete"><Trash2 size={16}/></button>
                        </td>
                     </tr>
@@ -468,8 +495,8 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
         </div>
       )}
 
-      {/* PRINTABLE CONTAINER (HIDDEN ON SCREEN) */}
-      <div id="printable-invoice" className="hidden print:block bg-white text-slate-900 min-h-screen">
+      {/* PRINTABLE / PDF CONTAINER */}
+      <div id="printable-invoice" className={`print:block bg-white text-slate-900 min-h-screen ${isGeneratingPdf ? 'fixed top-0 left-0 w-[210mm] z-[-50]' : 'hidden'}`}>
         <div className="flex justify-between items-start border-b-4 border-slate-900 pb-10 mb-10">
           <div>
             <h1 className="text-4xl font-black uppercase tracking-tighter">{data.companyProfile.name}</h1>
