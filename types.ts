@@ -44,7 +44,7 @@ export interface Product {
   category: string;
   subCategory: string;
   lastRestockedDate: string; // Tracking for Ageing Analysis
-  location?: string; // New: Physical location tracker
+  location?: string; // New: Physical location tracker (Stock Locator)
 }
 
 export interface Customer {

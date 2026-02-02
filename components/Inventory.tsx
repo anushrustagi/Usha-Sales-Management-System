@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { AppData, Product, Invoice } from '../types';
-import { Plus, Search, Filter, Edit2, Trash2, Package, Tag, X, ListFilter, Settings2, BarChart3, Activity, Info, Layers, ChevronRight, AlertCircle, CheckCircle2, Hash, FileSpreadsheet, Clock, Calendar, Eye, History, MapPin, ShieldCheck, Zap, Sparkles, ChevronDown, Tags, Save } from 'lucide-react';
+import { Plus, Search, Filter, Edit2, Trash2, Package, Tag, X, ListFilter, Settings2, BarChart3, Activity, Info, Layers, ChevronRight, AlertCircle, CheckCircle2, Hash, FileSpreadsheet, Clock, Calendar, Eye, History, MapPin, ShieldCheck, Zap, Sparkles, ChevronDown, Tags, Save, LocateFixed } from 'lucide-react';
 import * as XLSX from 'xlsx';
 
 interface InventoryProps {
@@ -15,6 +15,10 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  
+  // Stock History State
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
 
   useEffect(() => {
     if (initialFilter === "LOW_STOCK") setSearchTerm('');
@@ -36,6 +40,24 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
     if (days <= 30) return { label: 'Fresh', desc: `${days} days ago`, color: 'text-emerald-600 bg-emerald-50 border-emerald-100', icon: <Zap size={10} className="fill-emerald-600" /> };
     if (days <= 90) return { label: 'Active', desc: `${days} days ago`, color: 'text-blue-600 bg-blue-50 border-blue-100', icon: <Activity size={10} /> };
     return { label: 'Stagnant', desc: `Over ${days} days`, color: 'text-rose-600 bg-rose-50 border-rose-100', icon: <Clock size={10} /> };
+  };
+
+  const getProductHistory = (prodId: string) => {
+    const history: any[] = [];
+    data.invoices.forEach(inv => {
+      const item = inv.items.find(i => i.productId === prodId);
+      if(item) {
+        history.push({
+          date: inv.date,
+          type: inv.type, // SALE or PURCHASE
+          party: inv.partyName,
+          qty: item.quantity,
+          rate: item.rate,
+          invNo: inv.invoiceNo
+        });
+      }
+    });
+    return history.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
   const handleSaveProduct = (newProd: Product) => {
@@ -85,11 +107,11 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
       </div>
 
       <div className="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden overflow-x-auto">
-        <table className="w-full text-left min-w-[1000px]">
+        <table className="w-full text-left min-w-[1200px]">
           <thead className="bg-slate-50/50 text-slate-400 uppercase text-[9px] font-black tracking-widest border-b border-slate-100">
             <tr>
               <th className="px-10 py-8">SKU Detail</th>
-              <th className="px-6 py-8">Segment</th>
+              <th className="px-6 py-8">Location & Segment</th>
               <th className="px-6 py-8">Stock Volume</th>
               <th className="px-6 py-8">Ageing Profile</th>
               <th className="px-6 py-8 text-right">Unit Rate</th>
@@ -108,7 +130,16 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
                       <div><p className="font-black text-sm text-slate-800 uppercase tracking-tight">{p.name}</p><p className="text-[9px] font-black text-slate-300 uppercase mt-1">HSN Code: {p.hsn || 'N/A'}</p></div>
                     </div>
                   </td>
-                  <td className="px-6 py-8"><span className="px-3 py-1 bg-white border border-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase tracking-widest">{p.category}</span></td>
+                  <td className="px-6 py-8">
+                     <div className="flex flex-col gap-1.5 items-start">
+                        <span className="px-3 py-1 bg-white border border-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase tracking-widest">{p.category}</span>
+                        {p.location && (
+                           <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase">
+                              <MapPin size={10} /> {p.location}
+                           </div>
+                        )}
+                     </div>
+                  </td>
                   <td className="px-6 py-8">
                     <div className="w-40 space-y-2">
                        <div className="flex justify-between items-center text-[10px] font-black uppercase"><span className={p.stock <= p.minStockAlert ? 'text-rose-600' : 'text-slate-400'}>{p.stock} Units</span><span className="text-slate-200">Alert: {p.minStockAlert}</span></div>
@@ -117,7 +148,13 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
                   </td>
                   <td className="px-6 py-8"><div className="flex flex-col gap-1"><span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border flex items-center gap-2 w-fit ${ageing.color}`}>{ageing.icon} {ageing.label}</span><p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter ml-1">{ageing.desc}</p></div></td>
                   <td className="px-6 py-8 text-right font-black text-slate-900 tabular-nums">₹{p.salePrice.toLocaleString()}</td>
-                  <td className="px-10 py-8"><div className="flex justify-center gap-2"><button onClick={() => { setEditingProduct(p); setShowAddModal(true); }} className="p-2.5 bg-white text-slate-300 hover:text-blue-600 rounded-xl border border-slate-100 shadow-sm transition-all active:scale-90"><Edit2 size={16}/></button><button onClick={() => { if(confirm('Authorized Wipe: Erase this SKU from master catalog permanently?')) updateData({ products: data.products.filter(item => item.id !== p.id) }) }} className="p-2.5 bg-white text-slate-300 hover:text-rose-600 rounded-xl border border-slate-100 shadow-sm transition-all active:scale-90"><Trash2 size={16}/></button></div></td>
+                  <td className="px-10 py-8">
+                     <div className="flex justify-center gap-2">
+                        <button onClick={() => { setHistoryProduct(p); setShowHistoryModal(true); }} className="p-2.5 bg-white text-slate-300 hover:text-indigo-600 rounded-xl border border-slate-100 shadow-sm transition-all active:scale-90" title="View History"><History size={16}/></button>
+                        <button onClick={() => { setEditingProduct(p); setShowAddModal(true); }} className="p-2.5 bg-white text-slate-300 hover:text-blue-600 rounded-xl border border-slate-100 shadow-sm transition-all active:scale-90" title="Edit"><Edit2 size={16}/></button>
+                        <button onClick={() => { if(confirm('Authorized Wipe: Erase this SKU from master catalog permanently?')) updateData({ products: data.products.filter(item => item.id !== p.id) }) }} className="p-2.5 bg-white text-slate-300 hover:text-rose-600 rounded-xl border border-slate-100 shadow-sm transition-all active:scale-90" title="Delete"><Trash2 size={16}/></button>
+                     </div>
+                  </td>
                 </tr>
               );
             })}
@@ -140,6 +177,13 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
              <div className="flex justify-between items-center border-b border-slate-100 pb-6"><h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">{editingProduct ? 'Modify SKU' : 'Register New SKU'}</h3><button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><X size={24}/></button></div>
              <div className="grid grid-cols-1 gap-8">
                 <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">SKU Designation</label><input autoFocus type="text" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold bg-slate-50 outline-none focus:border-blue-500 transition-all uppercase shadow-inner" placeholder="Product Name" value={editingProduct?.name || ''} onChange={e => setEditingProduct(prev => prev ? {...prev, name: e.target.value} : {...data.products[0], name: e.target.value, stock: 0, minStockAlert: 5})} /></div>
+                
+                {/* Stock Locator Field */}
+                <div className="space-y-3">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2"><MapPin size={12}/> Stock Locator / Shelf ID</label>
+                   <input type="text" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold bg-slate-50 outline-none focus:border-blue-500 shadow-inner uppercase" placeholder="e.g. Aisle 4, Rack B" value={editingProduct?.location || ''} onChange={e => setEditingProduct(prev => prev ? {...prev, location: e.target.value} : null)} />
+                </div>
+
                 <div className="grid grid-cols-2 gap-8">
                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Current Stock</label><input type="number" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold bg-slate-50 outline-none focus:border-blue-500 shadow-inner" value={editingProduct?.stock || 0} onChange={e => setEditingProduct(prev => prev ? {...prev, stock: Number(e.target.value)} : null)} /></div>
                    <div className="space-y-3"><label className="text-[10px] font-black text-rose-400 uppercase tracking-widest ml-1">Low-stock Alert</label><input type="number" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold bg-slate-50 outline-none focus:border-rose-500 shadow-inner" value={editingProduct?.minStockAlert || 5} onChange={e => setEditingProduct(prev => prev ? {...prev, minStockAlert: Number(e.target.value)} : null)} /></div>
@@ -159,6 +203,51 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
              <button onClick={() => editingProduct && handleSaveProduct(editingProduct)} className="w-full py-6 bg-blue-600 text-white font-black rounded-3xl shadow-2xl uppercase tracking-[0.2em] text-[11px] active:scale-95 transition-all flex items-center justify-center gap-3"><ShieldCheck size={20} /> Authorize Ledger Record</button>
           </div>
         </div>
+      )}
+
+      {/* History Modal */}
+      {showHistoryModal && historyProduct && (
+         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[200] flex items-center justify-center p-4">
+            <div className="bg-white rounded-[3rem] w-full max-w-4xl shadow-2xl animate-in zoom-in duration-300 border border-white/10 flex flex-col max-h-[80vh]">
+               <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center gap-4">
+                     <div className="p-4 bg-indigo-600 text-white rounded-2xl shadow-xl"><History size={24}/></div>
+                     <div>
+                        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Movement History</h3>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{historyProduct.name}</p>
+                     </div>
+                  </div>
+                  <button onClick={() => setShowHistoryModal(false)} className="p-3 text-slate-400 hover:bg-white rounded-full transition-all"><X size={24}/></button>
+               </div>
+               
+               <div className="flex-1 overflow-y-auto p-8 bg-white">
+                  <table className="w-full text-left">
+                     <thead className="bg-slate-50 text-slate-400 font-black uppercase text-[10px] tracking-widest border-b">
+                        <tr><th className="px-6 py-4">Date</th><th className="px-6 py-4">Type</th><th className="px-6 py-4">Ref/Inv</th><th className="px-6 py-4">Party</th><th className="px-6 py-4 text-center">Qty</th><th className="px-6 py-4 text-right">Rate</th></tr>
+                     </thead>
+                     <tbody className="divide-y divide-slate-100">
+                        {getProductHistory(historyProduct.id).map((h, i) => (
+                           <tr key={i} className="hover:bg-slate-50 transition-colors">
+                              <td className="px-6 py-4 text-xs font-bold text-slate-500 tabular-nums">{new Date(h.date).toLocaleDateString()}</td>
+                              <td className="px-6 py-4">
+                                 <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border ${h.type === 'SALE' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                                    {h.type === 'SALE' ? 'Outward' : 'Inward'}
+                                 </span>
+                              </td>
+                              <td className="px-6 py-4 text-xs font-black text-slate-700 uppercase">{h.invNo}</td>
+                              <td className="px-6 py-4 text-xs font-bold text-slate-600 uppercase">{h.party}</td>
+                              <td className="px-6 py-4 text-center text-sm font-black text-slate-900">{h.qty}</td>
+                              <td className="px-6 py-4 text-right text-xs font-bold text-slate-500 tabular-nums">₹{h.rate}</td>
+                           </tr>
+                        ))}
+                        {getProductHistory(historyProduct.id).length === 0 && (
+                           <tr><td colSpan={6} className="py-10 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No movement recorded for this item</td></tr>
+                        )}
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+         </div>
       )}
     </div>
   );
