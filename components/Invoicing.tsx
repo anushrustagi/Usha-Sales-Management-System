@@ -77,15 +77,20 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
     setViewingInvoice(invoice);
     setIsGeneratingPdf(true);
     
-    // Allow DOM to render the invoice in the hidden container
+    // Wait for state update and DOM paint
     setTimeout(() => {
       const element = document.getElementById('printable-invoice');
       if (element) {
         const opt = {
-          margin: [10, 10, 10, 10],
+          margin: [10, 10, 10, 10], // mm
           filename: `Invoice_${invoice.invoiceNo}.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+          html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            scrollY: 0, // Important: Prevent scroll offset issues
+            logging: false
+          },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
         
@@ -95,9 +100,13 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
         }).catch((err: any) => {
             console.error("PDF Generation Error", err);
             setIsGeneratingPdf(false);
+            setViewingInvoice(null);
         });
+      } else {
+        console.error("Element not found");
+        setIsGeneratingPdf(false);
       }
-    }, 500); // 500ms delay to ensure DOM paint
+    }, 800); 
   };
 
   const handleSaveInvoice = () => {
@@ -287,6 +296,15 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
         }
       `}</style>
       
+      {/* Loading Overlay during PDF Generation */}
+      {isGeneratingPdf && (
+        <div className="fixed inset-0 bg-slate-900/90 z-[5000] flex flex-col items-center justify-center text-white no-print">
+           <Loader2 className="w-12 h-12 animate-spin mb-4 text-blue-500" />
+           <h3 className="text-xl font-black uppercase tracking-widest">Generating Invoice PDF</h3>
+           <p className="text-sm text-slate-400 mt-2 font-bold">Please wait while the document is rendered...</p>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-end gap-6 no-print">
         <div className="flex bg-white p-1.5 rounded-[1.5rem] border border-slate-200 shadow-sm">
           <button onClick={() => { setActiveTab('NEW'); resetForm(); }} className={`px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-3 ${activeTab === 'NEW' ? 'bg-slate-900 text-white shadow-xl' : 'text-slate-500 hover:text-slate-700'}`}><Plus size={18} /> New Voucher</button>
@@ -504,7 +522,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
       {/* PRINTABLE / PDF CONTAINER */}
       <div 
         id="printable-invoice" 
-        className={`print:block bg-white text-slate-900 h-auto ${isGeneratingPdf ? 'absolute top-0 left-[-10000px] w-[210mm] z-[-50] block' : 'hidden'}`}
+        className={`${isGeneratingPdf ? 'fixed top-0 left-0 w-[210mm] min-h-[297mm] bg-white z-[4000]' : 'hidden'} print:block`}
       >
         {viewingInvoice && (
           <div className="p-[20mm]">
