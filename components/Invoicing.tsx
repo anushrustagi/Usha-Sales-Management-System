@@ -28,7 +28,9 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
   const [gstEnabled, setGstEnabled] = useState(true);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
   const [amountPaid, setAmountPaid] = useState<number>(0);
-  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null); // For Print Preview
+  const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null); // For View Details Modal
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null); // For Edit Mode
   
   // Modals
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
@@ -72,18 +74,44 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
     if (!selectedPartyId && !manualName) return alert("Validation: Identity required.");
     if (items.length === 0) return alert("Manifest: Add items.");
 
+    // Prepare Copies for Atomic Update
+    let updatedProducts = [...data.products];
+    let updatedParties = type === 'SALE' ? [...data.customers] : [...data.suppliers];
+    let updatedInvoices = [...data.invoices];
+    let updatedTransactions = [...data.transactions];
+
+    // --- 1. REVERT OLD DATA IF EDITING ---
+    if (editingInvoice) {
+        // Revert Stock
+        editingInvoice.items.forEach(item => {
+            const pIdx = updatedProducts.findIndex(p => p.id === item.productId);
+            if (pIdx > -1) {
+                // If it was a sale, we gave stock, so add it back. If purchase, remove it.
+                const diff = type === 'SALE' ? item.quantity : -item.quantity;
+                updatedProducts[pIdx] = { ...updatedProducts[pIdx], stock: updatedProducts[pIdx].stock + diff };
+            }
+        });
+        // Revert Balance
+        if (editingInvoice.partyId && editingInvoice.partyId !== 'WALKIN') {
+            const pIdx = updatedParties.findIndex(p => p.id === editingInvoice.partyId);
+            if (pIdx > -1) {
+                const oldUnpaid = editingInvoice.grandTotal - editingInvoice.amountPaid;
+                updatedParties[pIdx] = { ...updatedParties[pIdx], outstandingBalance: updatedParties[pIdx].outstandingBalance - oldUnpaid };
+            }
+        }
+        // Remove Old Records
+        updatedInvoices = updatedInvoices.filter(i => i.id !== editingInvoice.id);
+        updatedTransactions = updatedTransactions.filter(t => !t.description.includes(`#${editingInvoice.invoiceNo}`));
+    }
+
+    // --- 2. APPLY NEW DATA ---
     const isManual = !selectedPartyId;
     const partyName = isManual ? manualName : selectedParty?.name || '';
     const partyPhone = isManual ? manualPhone : selectedParty?.phone;
     const partyAddress = isManual ? manualAddress : selectedParty?.address;
     const partyArea = isManual ? manualArea : selectedParty?.area;
 
-    let updatedProducts = [...data.products];
-    let updatedParties = type === 'SALE' ? [...data.customers] : [...data.suppliers];
-    let updatedInvoices = [...data.invoices];
-    let updatedTransactions = [...data.transactions];
-
-    const invoiceId = Math.random().toString(36).substr(2, 9);
+    const invoiceId = editingInvoice ? editingInvoice.id : Math.random().toString(36).substr(2, 9);
     
     const newInvoice: Invoice = {
       id: invoiceId, invoiceNo, date: new Date(invoiceDate).toISOString(), 
@@ -92,6 +120,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
       amountPaid, type, subType: type === 'SALE' ? 'TAX_INVOICE' : undefined, paymentMode
     };
 
+    // Apply New Stock
     items.forEach(it => {
       const pIdx = updatedProducts.findIndex(p => p.id === it.productId);
       if (pIdx > -1) {
@@ -100,6 +129,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
       }
     });
 
+    // Apply New Balance
     if (selectedPartyId) {
       const pIdx = updatedParties.findIndex(p => p.id === selectedPartyId);
       if (pIdx > -1) {
@@ -131,8 +161,65 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
     setActiveTab('HISTORY');
   };
 
+  const handleEditInvoice = (inv: Invoice) => {
+    setEditingInvoice(inv);
+    setItems(inv.items);
+    setInvoiceNo(inv.invoiceNo);
+    setInvoiceDate(inv.date.split('T')[0]);
+    setPaymentMode(inv.paymentMode);
+    setAmountPaid(inv.amountPaid);
+    
+    if (inv.partyId === 'WALKIN') {
+       setSelectedPartyId('');
+       setManualName(inv.partyName);
+       setManualPhone(inv.partyPhone || '');
+       setManualAddress(inv.partyAddress || '');
+       setManualArea(inv.partyArea || '');
+    } else {
+       setSelectedPartyId(inv.partyId);
+    }
+    setActiveTab('NEW');
+  };
+
+  const handleDeleteInvoice = (inv: Invoice) => {
+    if (!confirm("Are you sure? This will revert stock and balances associated with this invoice.")) return;
+
+    let updatedProducts = [...data.products];
+    let updatedParties = type === 'SALE' ? [...data.customers] : [...data.suppliers];
+    let updatedInvoices = [...data.invoices];
+    let updatedTransactions = [...data.transactions];
+
+    // Revert Stock
+    inv.items.forEach(item => {
+        const pIdx = updatedProducts.findIndex(p => p.id === item.productId);
+        if (pIdx > -1) {
+            const diff = type === 'SALE' ? item.quantity : -item.quantity;
+            updatedProducts[pIdx] = { ...updatedProducts[pIdx], stock: updatedProducts[pIdx].stock + diff };
+        }
+    });
+
+    // Revert Balance
+    if (inv.partyId && inv.partyId !== 'WALKIN') {
+        const pIdx = updatedParties.findIndex(p => p.id === inv.partyId);
+        if (pIdx > -1) {
+            const unpaid = inv.grandTotal - inv.amountPaid;
+            updatedParties[pIdx] = { ...updatedParties[pIdx], outstandingBalance: updatedParties[pIdx].outstandingBalance - unpaid };
+        }
+    }
+
+    updatedInvoices = updatedInvoices.filter(i => i.id !== inv.id);
+    updatedTransactions = updatedTransactions.filter(t => !t.description.includes(`#${inv.invoiceNo}`));
+
+    updateData({ 
+        invoices: updatedInvoices, 
+        transactions: updatedTransactions, 
+        products: updatedProducts, 
+        [type === 'SALE' ? 'customers' : 'suppliers']: updatedParties 
+    });
+  };
+
   const resetForm = () => {
-    setItems([]); setSelectedPartyId(''); setAmountPaid(0); setViewingInvoice(null);
+    setItems([]); setSelectedPartyId(''); setAmountPaid(0); setViewingInvoice(null); setEditingInvoice(null);
     setManualName(''); setManualPhone(''); setManualArea(''); setManualAddress(''); setManualGstin('');
     setInvoiceNo(`${type === 'SALE' ? 'SL' : 'PR'}-${Date.now().toString().slice(-6)}`);
   };
@@ -184,11 +271,16 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
       {activeTab === 'NEW' ? (
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8 no-print animate-in fade-in duration-300">
           <div className="xl:col-span-3 space-y-8">
-            <div className={`bg-white p-10 rounded-[3rem] border-t-[12px] shadow-sm ${themeClasses.bg}`}>
+            <div className={`bg-white p-10 rounded-[3rem] border-t-[12px] shadow-sm ${editingInvoice ? 'border-amber-500 ring-4 ring-amber-50' : themeClasses.bg}`}>
               <div className="flex justify-between items-start mb-10 pb-8 border-b border-slate-50">
                 <div className="flex items-center gap-6">
-                  <div className={`p-5 rounded-[2rem] shadow-xl ${themeClasses.lightBg} ${themeClasses.text}`}><ShoppingBag size={36} /></div>
-                  <div><h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter mb-1">{type === 'SALE' ? 'Sales Ledger' : 'Purchase Ledger'}</h2><p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Integrated Registry System</p></div>
+                  <div className={`p-5 rounded-[2rem] shadow-xl ${editingInvoice ? 'bg-amber-100 text-amber-600' : themeClasses.lightBg + ' ' + themeClasses.text}`}>
+                     {editingInvoice ? <Edit2 size={36}/> : <ShoppingBag size={36} />}
+                  </div>
+                  <div>
+                     <h2 className="text-2xl font-black text-slate-800 uppercase tracking-tighter mb-1">{editingInvoice ? 'Modify Voucher' : (type === 'SALE' ? 'Sales Ledger' : 'Purchase Ledger')}</h2>
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">{editingInvoice ? `Editing: ${editingInvoice.invoiceNo}` : 'Integrated Registry System'}</p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3"><span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Enable GST</span><button onClick={() => setGstEnabled(!gstEnabled)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${gstEnabled ? 'bg-slate-900' : 'bg-slate-200'}`}><span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${gstEnabled ? 'translate-x-6' : 'translate-x-1'}`} /></button></div>
               </div>
@@ -290,8 +382,9 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    <button onClick={() => handlePrint(null)} className="py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all flex items-center justify-center gap-2"><Printer size={16} /> Print Preview</button>
-                    <button onClick={handleSaveInvoice} className={`py-4 text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-[10px] active:scale-95 transition-all ${themeClasses.bg}`}>Post Ledger</button>
+                    {editingInvoice && <button onClick={resetForm} className="py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all">Cancel Edit</button>}
+                    {!editingInvoice && <button onClick={() => handlePrint(null)} className="py-4 bg-slate-100 text-slate-600 font-black rounded-2xl uppercase tracking-widest text-[10px] hover:bg-slate-200 transition-all flex items-center justify-center gap-2"><Printer size={16} /> Print</button>}
+                    <button onClick={handleSaveInvoice} className={`py-4 text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-[10px] active:scale-95 transition-all ${editingInvoice ? 'col-span-1 bg-amber-600' : themeClasses.bg} ${!editingInvoice ? 'col-span-1' : ''}`}>{editingInvoice ? 'Update Voucher' : 'Post Ledger'}</button>
                 </div>
              </div>
           </div>
@@ -310,14 +403,68 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                        <td className="px-6 py-6 font-black text-slate-900">{inv.invoiceNo}</td>
                        <td className="px-6 py-6 font-bold text-slate-700 uppercase">{inv.partyName}</td>
                        <td className="px-10 py-6 text-right font-black text-blue-600 tabular-nums">₹{inv.grandTotal.toLocaleString()}</td>
-                       <td className="px-10 py-6 text-center flex justify-center gap-3">
-                          <button onClick={() => handlePrint(inv)} className="p-3 bg-white text-slate-300 hover:text-blue-600 rounded-xl border border-slate-100 shadow-sm active:scale-90 transition-all" title="Print Invoice"><Printer size={18}/></button>
+                       <td className="px-10 py-6 text-center flex justify-center gap-2">
+                          <button onClick={() => setDetailInvoice(inv)} className="p-3 bg-white text-slate-300 hover:text-blue-600 rounded-xl border border-slate-100 shadow-sm active:scale-90 transition-all" title="View Details"><Eye size={16}/></button>
+                          <button onClick={() => handleEditInvoice(inv)} className="p-3 bg-white text-slate-300 hover:text-amber-600 rounded-xl border border-slate-100 shadow-sm active:scale-90 transition-all" title="Edit Voucher"><Edit2 size={16}/></button>
+                          <button onClick={() => handlePrint(inv)} className="p-3 bg-white text-slate-300 hover:text-slate-600 rounded-xl border border-slate-100 shadow-sm active:scale-90 transition-all" title="Print"><Printer size={16}/></button>
+                          <button onClick={() => handleDeleteInvoice(inv)} className="p-3 bg-white text-slate-300 hover:text-rose-600 rounded-xl border border-slate-100 shadow-sm active:scale-90 transition-all" title="Delete"><Trash2 size={16}/></button>
                        </td>
                     </tr>
                   ))}
                </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Detail View Modal */}
+      {detailInvoice && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xl z-[500] flex items-center justify-center p-4 no-print">
+           <div className="bg-white rounded-[3.5rem] w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in border border-white/20 flex flex-col max-h-[85vh]">
+              <div className="p-8 border-b bg-slate-50/50 flex items-center justify-between">
+                 <div className="flex items-center gap-4">
+                    <div className="p-4 rounded-2xl shadow-xl bg-blue-600 text-white"><FileText size={24}/></div>
+                    <div><h3 className="font-black text-slate-800 uppercase tracking-tighter text-xl">Voucher Details</h3><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">#{detailInvoice.invoiceNo}</p></div>
+                 </div>
+                 <button onClick={() => setDetailInvoice(null)} className="p-3 text-slate-400 hover:bg-white rounded-full transition-all"><X size={24}/></button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                 <div className="grid grid-cols-2 gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Party Name</p><p className="text-sm font-black text-slate-800 uppercase">{detailInvoice.partyName}</p></div>
+                    <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</p><p className="text-sm font-bold text-slate-600">{new Date(detailInvoice.date).toLocaleDateString()}</p></div>
+                    <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Payment Mode</p><p className="text-sm font-bold text-slate-600 uppercase">{detailInvoice.paymentMode}</p></div>
+                    <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</p><p className={`text-sm font-bold uppercase ${detailInvoice.grandTotal === detailInvoice.amountPaid ? 'text-emerald-600' : 'text-rose-600'}`}>{detailInvoice.grandTotal === detailInvoice.amountPaid ? 'Fully Paid' : 'Partial/Due'}</p></div>
+                 </div>
+                 
+                 <table className="w-full text-left">
+                    <thead className="bg-white text-slate-400 font-black uppercase text-[9px] tracking-widest border-b border-slate-100">
+                       <tr><th className="py-3">Item</th><th className="py-3 text-center">HSN</th><th className="py-3 text-center">Qty</th><th className="py-3 text-right">Rate</th><th className="py-3 text-right">Total</th></tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                       {detailInvoice.items.map((item, idx) => (
+                          <tr key={idx}>
+                             <td className="py-3 text-xs font-bold text-slate-700 uppercase">{item.productName}</td>
+                             <td className="py-3 text-center text-[10px] font-bold text-slate-500">{item.hsn}</td>
+                             <td className="py-3 text-center text-xs font-black text-slate-800">{item.quantity}</td>
+                             <td className="py-3 text-right text-xs font-bold text-slate-600">₹{item.rate.toLocaleString()}</td>
+                             <td className="py-3 text-right text-xs font-black text-slate-900">₹{item.amount.toLocaleString()}</td>
+                          </tr>
+                       ))}
+                    </tbody>
+                 </table>
+
+                 <div className="flex justify-end pt-4 border-t border-slate-100">
+                    <div className="text-right space-y-1">
+                       <div className="flex justify-between w-48 text-[10px] font-bold text-slate-500 uppercase tracking-widest"><span>Subtotal</span><span>₹{detailInvoice.subTotal.toLocaleString()}</span></div>
+                       <div className="flex justify-between w-48 text-[10px] font-bold text-emerald-600 uppercase tracking-widest"><span>GST</span><span>₹{detailInvoice.totalGst.toLocaleString()}</span></div>
+                       <div className="flex justify-between w-48 text-xl font-black text-slate-900 uppercase tracking-tighter pt-2 border-t border-slate-200"><span>Total</span><span>₹{detailInvoice.grandTotal.toLocaleString()}</span></div>
+                    </div>
+                 </div>
+              </div>
+              <div className="p-6 bg-slate-50 border-t flex justify-end gap-3">
+                 <button onClick={() => { setDetailInvoice(null); handleEditInvoice(detailInvoice); }} className="px-6 py-3 bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2"><Edit2 size={14}/> Modify Voucher</button>
+              </div>
+           </div>
         </div>
       )}
 
