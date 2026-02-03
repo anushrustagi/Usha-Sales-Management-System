@@ -39,6 +39,7 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [forecast, setForecast] = useState<ForecastResult | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     const handleStatusChange = () => setIsOnline(navigator.onLine);
@@ -51,8 +52,12 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
   }, []);
 
   const generateForecast = async () => {
-    if (!isOnline) return;
+    if (!isOnline) {
+      setErrorMsg("System Offline. Connect to internet for AI analysis.");
+      return;
+    }
     setLoading(true);
+    setErrorMsg('');
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
@@ -74,7 +79,7 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
 
       const response = await ai.models.generateContent({
         model: "gemini-3-pro-preview",
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: prompt,
         config: {
           responseMimeType: "application/json",
           responseSchema: {
@@ -112,10 +117,13 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
 
       const responseText = response.text;
       if (!responseText) throw new Error("Empty AI Content");
-      setForecast(JSON.parse(responseText.replace(/```json|```/g, "").trim()));
+      
+      // Clean up markdown if present, though responseMimeType should handle it
+      const cleanJson = responseText.replace(/```json|```/g, "").trim();
+      setForecast(JSON.parse(cleanJson));
     } catch (error: any) {
       console.error("Analysis Link Refused:", error);
-      // Fallback data provided for demonstration...
+      setErrorMsg(`Analysis Failed: ${error.message || "Unknown error"}. Check API Key.`);
     } finally {
       setLoading(false);
     }
@@ -138,35 +146,84 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
         </div>
       </div>
 
-      {!forecast && !loading ? (
+      {errorMsg && (
+        <div className="bg-rose-50 border border-rose-100 p-6 rounded-3xl flex items-center gap-4 text-rose-600 animate-in fade-in">
+           <AlertTriangle size={24} />
+           <p className="font-bold text-xs uppercase tracking-wider">{errorMsg}</p>
+        </div>
+      )}
+
+      {!forecast && !loading && !errorMsg ? (
         <div className="flex flex-col items-center justify-center py-24 bg-white rounded-3xl border-2 border-slate-100 border-dashed animate-in fade-in duration-700">
           <Activity className="w-10 h-10 text-slate-300 mb-4" />
           <h3 className="text-slate-400 font-black text-sm uppercase tracking-widest">Awaiting Analysis Directive</h3>
         </div>
       ) : loading ? (
         <div className="space-y-6 animate-pulse"><div className="h-64 bg-slate-100 rounded-3xl"></div></div>
-      ) : (
+      ) : forecast ? (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
            {/* Chart and Detail Grid Rendering... */}
            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col">
                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-8">Revenue Velocity Curve</h3>
                <div className="h-80 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={forecast?.monthlyProjections}>
+                    <ComposedChart data={forecast.monthlyProjections}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                       <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8', fontWeight: 800}} />
                       <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8', fontWeight: 800}} />
                       <Tooltip contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', fontSize: '12px', fontWeight: 'bold' }} />
                       <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={36}>
-                        {forecast?.monthlyProjections.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.isPredicted ? '#e0e7ff' : '#2563eb'} />)}
+                        {forecast.monthlyProjections.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.isPredicted ? '#e0e7ff' : '#2563eb'} />)}
                       </Bar>
                       <Area type="monotone" dataKey="value" fill="#3b82f6" fillOpacity={0.05} stroke="#3b82f6" strokeWidth={4} />
                     </ComposedChart>
                   </ResponsiveContainer>
                </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><Lightbulb size={14} className="text-amber-500"/> Procurement Strategy</h3>
+                  <p className="text-sm font-bold text-slate-700 leading-relaxed">{forecast.procurementAdvice}</p>
+               </div>
+               <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><Target size={14} className="text-blue-500"/> Top Performers</h3>
+                  <div className="flex flex-wrap gap-2">
+                     {forecast.topProducts.map((p, i) => (
+                        <span key={i} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold uppercase">{p}</span>
+                     ))}
+                  </div>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
+                   <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3">Strengths</h4>
+                   <ul className="list-disc list-inside space-y-1">
+                      {forecast.swot.strengths.map((s, i) => <li key={i} className="text-xs font-bold text-emerald-800">{s}</li>)}
+                   </ul>
+                </div>
+                <div className="bg-rose-50 p-6 rounded-3xl border border-rose-100">
+                   <h4 className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-3">Weaknesses</h4>
+                   <ul className="list-disc list-inside space-y-1">
+                      {forecast.swot.weaknesses.map((s, i) => <li key={i} className="text-xs font-bold text-rose-800">{s}</li>)}
+                   </ul>
+                </div>
+                <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100">
+                   <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3">Opportunities</h4>
+                   <ul className="list-disc list-inside space-y-1">
+                      {forecast.swot.opportunities.map((s, i) => <li key={i} className="text-xs font-bold text-blue-800">{s}</li>)}
+                   </ul>
+                </div>
+                <div className="bg-amber-50 p-6 rounded-3xl border border-amber-100">
+                   <h4 className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3">Threats</h4>
+                   <ul className="list-disc list-inside space-y-1">
+                      {forecast.swot.threats.map((s, i) => <li key={i} className="text-xs font-bold text-amber-800">{s}</li>)}
+                   </ul>
+                </div>
+            </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 };

@@ -74,7 +74,7 @@ const Header: React.FC<HeaderProps> = ({ activeView, setActiveView, businessName
 
       const response = await ai.models.generateContent({ 
         model: 'gemini-3-flash-preview', 
-        contents: [{ parts: [{ text: userPrompt }] }],
+        contents: userPrompt, // Passed simply as string
         config: { systemInstruction }
       });
 
