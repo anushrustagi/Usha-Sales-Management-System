@@ -30,7 +30,11 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
     if (initialFilter === "LOW_STOCK") list = list.filter(p => p.stock <= p.minStockAlert);
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
-      list = list.filter(p => p.name.toLowerCase().includes(s) || p.category.toLowerCase().includes(s));
+      list = list.filter(p => 
+        p.name.toLowerCase().includes(s) || 
+        p.category.toLowerCase().includes(s) ||
+        p.location?.toLowerCase().includes(s)
+      );
     }
     return list;
   }, [data.products, searchTerm, initialFilter]);
@@ -69,7 +73,11 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
 
     if (editingProduct) {
       const idx = products.findIndex(p => p.id === editingProduct.id);
-      products[idx] = { ...newProd, id: editingProduct.id, lastRestockedDate: editingProduct.lastRestockedDate };
+      products[idx] = { 
+          ...newProd, 
+          id: editingProduct.id, 
+          lastRestockedDate: editingProduct.lastRestockedDate 
+      };
     } else {
       products.push({ ...newProd, id: Math.random().toString(36).substr(2, 9), lastRestockedDate: new Date().toISOString() });
     }
@@ -102,7 +110,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
       <div className="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center gap-6 no-print">
         <div className="relative flex-1 group">
           <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-blue-500 transition-colors w-5 h-5" />
-          <input type="text" placeholder="Search Master Catalog by SKU or Segment..." className="pl-14 pr-6 py-4 w-full bg-slate-50 border-2 border-slate-50 focus:border-blue-100 focus:bg-white rounded-2xl text-sm font-bold outline-none transition-all shadow-inner uppercase" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <input type="text" placeholder="Search by SKU Name, Category or Shelf ID..." className="pl-14 pr-6 py-4 w-full bg-slate-50 border-2 border-slate-50 focus:border-blue-100 focus:bg-white rounded-2xl text-sm font-bold outline-none transition-all shadow-inner uppercase" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
       </div>
 
@@ -134,7 +142,7 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
                      <div className="flex flex-col gap-1.5 items-start">
                         <span className="px-3 py-1 bg-white border border-slate-100 text-slate-600 rounded-lg text-[8px] font-black uppercase tracking-widest">{p.category}</span>
                         {p.location && (
-                           <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase">
+                           <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500 uppercase bg-slate-100 px-2 py-0.5 rounded">
                               <MapPin size={10} /> {p.location}
                            </div>
                         )}

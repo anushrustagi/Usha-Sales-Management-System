@@ -74,6 +74,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
   };
 
   const handleDownloadPdf = (invoice: Invoice) => {
+    window.scrollTo(0,0);
     setViewingInvoice(invoice);
     setIsGeneratingPdf(true);
     
