@@ -1,11 +1,10 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppData, PlannedTask } from '../types';
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, LiveServerMessage, Modality, Blob, GenerateContentResponse, Type } from "@google/genai";
 import { 
   Bot, BrainCircuit, Sparkles, Activity, ShieldAlert, Zap, 
   Lightbulb, CheckCircle2, AlertTriangle, ArrowRight, Loader2,
-  Terminal, MessageSquare, Send, RefreshCcw, Power, Plus
+  Terminal, MessageSquare, Send, RefreshCcw, Power, Plus, Mic, MicOff, Volume2
 } from 'lucide-react';
 
 interface BrainProps {
@@ -28,6 +27,18 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
   const [chatResponse, setChatResponse] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  // Live API State
+  const [isLiveActive, setIsLiveActive] = useState(false);
+  const [volume, setVolume] = useState(0);
+  const sessionRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const inputSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  
+  // Audio Output Refs
+  const nextStartTimeRef = useRef<number>(0);
+  const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
 
   useEffect(() => {
     const handleStatus = () => setIsOnline(navigator.onLine);
@@ -36,51 +47,240 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
     return () => {
         window.removeEventListener('online', handleStatus);
         window.removeEventListener('offline', handleStatus);
+        stopLiveSession();
     };
   }, []);
 
+  // --- Live API & Context Logic ---
+
+  const getContextSummary = () => {
+    const now = new Date();
+    const last30Days = new Date(now.setDate(now.getDate() - 30));
+    
+    // Financials
+    const recentSales = data.invoices.filter(i => i.type === 'SALE' && new Date(i.date) >= last30Days);
+    const totalRevenue = recentSales.reduce((acc, i) => acc + i.grandTotal, 0);
+    const unpaidInvoices = data.invoices.filter(i => i.type === 'SALE' && i.amountPaid < i.grandTotal).length;
+    
+    // Inventory
+    const lowStockItems = data.products.filter(p => p.stock <= p.minStockAlert);
+    const lowStockList = lowStockItems.slice(0, 5).map(p => `${p.name} (${p.stock})`).join(', ');
+    
+    // Debtors
+    const topDebtors = data.customers
+        .filter(c => c.outstandingBalance > 0)
+        .sort((a,b) => b.outstandingBalance - a.outstandingBalance)
+        .slice(0,3)
+        .map(c => `${c.name}: ₹${c.outstandingBalance.toLocaleString()}`);
+
+    return `
+      BUSINESS SNAPSHOT (${new Date().toLocaleDateString()}):
+      - Company Name: ${data.companyProfile.name}
+      - 30-Day Revenue: ₹${totalRevenue.toLocaleString()}
+      - Total Active Products: ${data.products.length}
+      - Critical Low Stock (${lowStockItems.length} items): ${lowStockList || 'None'}
+      - Top 3 Debtors: ${topDebtors.join(', ') || 'None'}
+      - Unpaid Sales Invoices: ${unpaidInvoices}
+      - Active Projects: ${data.projects.filter(p => p.status === 'ACTIVE').length}
+    `;
+  };
+
+  const startLiveSession = async () => {
+    if (!isOnline) {
+      setChatResponse("Cannot connect: System Offline.");
+      return;
+    }
+    if (!process.env.API_KEY) {
+      setChatResponse("API Key missing in environment.");
+      return;
+    }
+
+    try {
+      setIsLiveActive(true);
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      
+      const contextSummary = getContextSummary();
+      const systemInstruction = `You are the AI Business Manager for ${data.companyProfile.name}. 
+      You have direct access to the live ledger.
+      
+      ${contextSummary}
+      
+      Your Role:
+      1. Answer specific questions about sales, stock, and debts using the data provided.
+      2. Be professional, concise, and strategic.
+      3. If asked about something not in the summary, ask for clarification.
+      
+      Speak naturally.`;
+
+      // Audio Setup
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const audioCtx = new AudioContextClass({ sampleRate: 24000 });
+      audioContextRef.current = audioCtx;
+      nextStartTimeRef.current = audioCtx.currentTime;
+
+      // Input Stream
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const inputCtx = new AudioContextClass({ sampleRate: 16000 });
+      const source = inputCtx.createMediaStreamSource(stream);
+      const processor = inputCtx.createScriptProcessor(4096, 1, 1);
+      
+      inputSourceRef.current = source;
+      processorRef.current = processor;
+
+      const sessionPromise = ai.live.connect({
+        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
+          },
+          systemInstruction: systemInstruction,
+        },
+        callbacks: {
+          onopen: () => {
+            console.log("Live Session Connected");
+            setChatResponse("Voice Link Active. Listening...");
+            
+            processor.onaudioprocess = (e) => {
+              const inputData = e.inputBuffer.getChannelData(0);
+              // Calculate volume for UI visualization
+              let sum = 0;
+              for(let i=0; i<inputData.length; i++) sum += inputData[i] * inputData[i];
+              const rms = Math.sqrt(sum / inputData.length);
+              setVolume(rms);
+
+              const pcmBlob = createBlob(inputData);
+              sessionPromise.then(session => session.sendRealtimeInput({ media: pcmBlob }));
+            };
+            
+            source.connect(processor);
+            processor.connect(inputCtx.destination);
+          },
+          onmessage: async (msg: LiveServerMessage) => {
+            const audioData = msg.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+            if (audioData) {
+              const audioCtx = audioContextRef.current;
+              if (audioCtx) {
+                // Ensure seamless playback by scheduling next chunk
+                nextStartTimeRef.current = Math.max(nextStartTimeRef.current, audioCtx.currentTime);
+                
+                const buffer = await decodeAudioData(decode(audioData), audioCtx);
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioCtx.destination);
+                
+                source.addEventListener('ended', () => sourcesRef.current.delete(source));
+                source.start(nextStartTimeRef.current);
+                sourcesRef.current.add(source);
+                
+                nextStartTimeRef.current += buffer.duration;
+              }
+            }
+            
+            if (msg.serverContent?.interrupted) {
+               sourcesRef.current.forEach(s => { s.stop(); });
+               sourcesRef.current.clear();
+               if(audioContextRef.current) nextStartTimeRef.current = audioContextRef.current.currentTime;
+            }
+          },
+          onclose: () => {
+            console.log("Live Session Closed");
+            setIsLiveActive(false);
+          },
+          onerror: (err) => {
+            console.error("Live Error", err);
+            setChatResponse("Voice Link Error. Reconnecting...");
+            setIsLiveActive(false);
+          }
+        }
+      });
+      
+      sessionRef.current = sessionPromise;
+
+    } catch (e) {
+      console.error("Failed to start live session", e);
+      setIsLiveActive(false);
+      setChatResponse("Microphone Access Denied or API Error.");
+    }
+  };
+
+  const stopLiveSession = () => {
+    if (sessionRef.current) {
+      sessionRef.current.then((s: any) => s.close());
+      sessionRef.current = null;
+    }
+    if (processorRef.current) {
+        processorRef.current.disconnect();
+        processorRef.current = null;
+    }
+    if (inputSourceRef.current) {
+        inputSourceRef.current.disconnect();
+        inputSourceRef.current = null;
+    }
+    if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+    }
+    setIsLiveActive(false);
+    setVolume(0);
+    setChatResponse("Voice Link Terminated.");
+  };
+
+  // Helper functions for Audio
+  function createBlob(data: Float32Array): Blob {
+    const l = data.length;
+    const int16 = new Int16Array(l);
+    for (let i = 0; i < l; i++) int16[i] = data[i] * 32768;
+    return {
+      data: encode(new Uint8Array(int16.buffer)),
+      mimeType: 'audio/pcm;rate=16000',
+    };
+  }
+
+  function encode(bytes: Uint8Array) {
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  function decode(base64: string) {
+    const binaryString = atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+    return bytes;
+  }
+
+  async function decodeAudioData(data: Uint8Array, ctx: AudioContext) {
+    const dataInt16 = new Int16Array(data.buffer);
+    const buffer = ctx.createBuffer(1, dataInt16.length, 24000);
+    const channelData = buffer.getChannelData(0);
+    for (let i = 0; i < dataInt16.length; i++) {
+        channelData[i] = dataInt16[i] / 32768.0;
+    }
+    return buffer;
+  }
+
+  // --- End Live API Implementation ---
+
+  // --- Deep Analysis Implementation ---
   const runFullScan = async () => {
     if (!isOnline) return;
     setLoading(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const summary = getContextSummary(); // Get fresh data
       
-      // 1. Prepare Condensed Context (Avoid token overflow)
-      const now = new Date();
-      const last30Days = new Date(now.setDate(now.getDate() - 30));
-      
-      const recentSales = data.invoices.filter(i => i.type === 'SALE' && new Date(i.date) >= last30Days);
-      const totalRevenue30d = recentSales.reduce((acc, i) => acc + i.grandTotal, 0);
-      const recentExpenses = data.transactions.filter(t => t.type === 'DEBIT' && new Date(t.date) >= last30Days);
-      const totalExpense30d = recentExpenses.reduce((acc, t) => acc + t.amount, 0);
-      
-      const lowStockCount = data.products.filter(p => p.stock <= p.minStockAlert).length;
-      const totalOutstanding = data.customers.reduce((acc, c) => acc + c.outstandingBalance, 0);
-      
-      const context = {
-        company: data.companyProfile.name,
-        metrics: {
-          revenue30d: totalRevenue30d,
-          expense30d: totalExpense30d,
-          cashFlow: totalRevenue30d - totalExpense30d,
-          lowStockSKUs: lowStockCount,
-          totalDebtReceivable: totalOutstanding,
-          activeProjects: data.projects.filter(p => p.status === 'ACTIVE').length
-        },
-        topDebtors: data.customers.sort((a,b) => b.outstandingBalance - a.outstandingBalance).slice(0, 5).map(c => ({ name: c.name, debt: c.outstandingBalance })),
-        recentActivity: recentSales.slice(-5).map(s => `Sale: ${s.grandTotal}`)
-      };
-
-      const prompt = `Act as the Chief Operating Officer (COO) AI for ${context.company}.
-      Analyze the provided business metrics.
-      
-      Data Context: ${JSON.stringify(context)}
+      const prompt = `Act as the Chief Operating Officer (COO) AI.
+      Analyze the following business metrics:
+      ${summary}
       
       Task:
       1. Calculate a Business Health Score (0-100).
-      2. Identify critical anomalies or risks (Alerts).
+      2. Identify critical anomalies (Alerts).
       3. Find strategic opportunities (Insights).
-      4. Generate 3-5 specific, actionable tasks for the owner.
+      4. Generate 3 specific, actionable tasks for the owner.
       
       Output strictly in JSON format matching the schema.`;
 
@@ -89,6 +289,7 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
         contents: prompt,
         config: {
           responseMimeType: "application/json",
+          // Use type enum from SDK
           responseSchema: {
             type: Type.OBJECT,
             properties: {
@@ -141,27 +342,29 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
     }
   };
 
+  // --- Streaming Chat Implementation ---
   const handleSmartChat = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || !isOnline) return;
+    
     setChatLoading(true);
+    setChatResponse(''); // Clear previous response
+    
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      // Lightweight context for chat
-      const context = {
-        products: data.products.length,
-        salesCount: data.invoices.length,
-        customers: data.customers.length,
-        lastTransaction: data.transactions.slice(-1)[0]
-      };
+      const context = getContextSummary();
       
-      const response = await ai.models.generateContent({
+      const responseStream = await ai.models.generateContentStream({
         model: "gemini-3-flash-preview",
-        contents: `Context: ${JSON.stringify(context)}. User Query: ${query}. Answer briefly and professionally as the Business Brain.`,
+        contents: `Business Context: ${context}. User Query: ${query}. Answer briefly and professionally as the Business Brain.`,
       });
-      setChatResponse(response.text || "Thinking process interrupted.");
+
+      for await (const chunk of responseStream) {
+        const text = (chunk as GenerateContentResponse).text || '';
+        setChatResponse(prev => prev + text);
+      }
     } catch (e) {
-        setChatResponse("Link to neural core unstable.");
+        setChatResponse("Link to neural core unstable. Please check internet.");
     } finally {
         setChatLoading(false);
     }
@@ -178,10 +381,9 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
     updateData({ plannedTasks: [...data.plannedTasks, newTask] });
   };
 
-  // Initial scan on mount if no analysis exists
+  // Initial Scan on Mount
   useEffect(() => {
     if (!analysis && isOnline && !loading) {
-        // Debounce slightly to allow rendering
         const t = setTimeout(runFullScan, 500);
         return () => clearTimeout(t);
     }
@@ -231,21 +433,6 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
            <BrainCircuit className="w-full h-full text-indigo-500 transform scale-150 translate-x-20 translate-y-10" strokeWidth={0.5} />
         </div>
       </div>
-
-      {!analysis && loading && (
-         <div className="h-96 flex flex-col items-center justify-center text-slate-400 space-y-4">
-            <Loader2 size={48} className="animate-spin text-indigo-600" />
-            <p className="text-xs font-black uppercase tracking-[0.2em] animate-pulse">Establishing Neural Link...</p>
-         </div>
-      )}
-
-      {!analysis && !loading && (
-         <div className="h-64 flex flex-col items-center justify-center text-slate-300 border-2 border-dashed border-slate-200 rounded-[3rem]">
-            <Power size={48} className="mb-4 text-slate-200" />
-            <p className="text-xs font-black uppercase tracking-widest">System Standby</p>
-            <button onClick={runFullScan} className="mt-4 text-indigo-600 font-bold text-xs uppercase underline">Initiate Sequence</button>
-         </div>
-      )}
 
       {analysis && (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -333,10 +520,15 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
                        <Terminal size={18} className="text-emerald-400" />
                        <h3 className="font-black text-white text-xs uppercase tracking-widest">Neural Link</h3>
                     </div>
-                    <div className="flex gap-1">
-                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse delay-75"></div>
-                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse delay-150"></div>
+                    <div className="flex gap-1 items-center">
+                       {isLiveActive && (
+                          <div className="flex gap-1 items-end h-4">
+                             {[...Array(3)].map((_, i) => (
+                                <div key={i} className="w-1 bg-emerald-500 animate-pulse" style={{ height: `${Math.max(4, volume * 100 * (i+1))}px`, animationDuration: '0.2s' }}></div>
+                             ))}
+                          </div>
+                       )}
+                       {!isLiveActive && <div className="w-1.5 h-1.5 rounded-full bg-slate-600"></div>}
                     </div>
                  </div>
                  
@@ -347,18 +539,18 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
                        </div>
                        <div className="p-4 bg-white/10 rounded-2xl rounded-tl-none border border-white/5">
                           <p className="text-xs font-bold text-slate-300 leading-relaxed">
-                             Neural core online. I have access to your sales, inventory, and customer ledgers. How can I assist with operations today?
+                             Neural core online. I have live access to your sales, inventory, and customer ledgers.
                           </p>
                        </div>
                     </div>
 
                     {chatResponse && (
                        <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-2">
-                          <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center shrink-0">
-                             <Bot size={16} className="text-white"/>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isLiveActive ? 'bg-emerald-600 animate-pulse' : 'bg-indigo-600'}`}>
+                             {isLiveActive ? <Volume2 size={16} className="text-white"/> : <Bot size={16} className="text-white"/>}
                           </div>
-                          <div className="p-4 bg-white/10 rounded-2xl rounded-tl-none border border-white/5">
-                             <p className="text-xs font-bold text-slate-300 leading-relaxed whitespace-pre-line">
+                          <div className={`p-4 rounded-2xl rounded-tl-none border ${isLiveActive ? 'bg-emerald-900/30 border-emerald-500/30' : 'bg-white/10 border-white/5'}`}>
+                             <p className={`text-xs font-bold leading-relaxed whitespace-pre-line ${isLiveActive ? 'text-emerald-200' : 'text-slate-300'}`}>
                                 {chatResponse}
                              </p>
                           </div>
@@ -366,24 +558,47 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
                     )}
                  </div>
 
-                 <div className="p-4 bg-white/5 border-t border-white/5">
-                    <form onSubmit={handleSmartChat} className="relative">
-                       <input 
-                         type="text" 
-                         className="w-full bg-slate-950 border border-white/10 rounded-2xl pl-5 pr-14 py-4 text-xs font-bold text-white outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600 uppercase"
-                         placeholder="Query the database..."
-                         value={query}
-                         onChange={e => setQuery(e.target.value)}
-                         disabled={chatLoading}
-                       />
-                       <button 
-                         type="submit" 
-                         disabled={chatLoading || !query}
-                         className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition-all disabled:opacity-50"
-                       >
-                          {chatLoading ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>}
-                       </button>
-                    </form>
+                 <div className="p-4 bg-white/5 border-t border-white/5 space-y-4">
+                    {!isLiveActive ? (
+                       <form onSubmit={handleSmartChat} className="relative flex gap-2">
+                          <input 
+                            type="text" 
+                            className="flex-1 bg-slate-950 border border-white/10 rounded-2xl pl-5 pr-4 py-4 text-xs font-bold text-white outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600 uppercase"
+                            placeholder="Query the database..."
+                            value={query}
+                            onChange={e => setQuery(e.target.value)}
+                            disabled={chatLoading}
+                          />
+                          <button 
+                            type="submit" 
+                            disabled={chatLoading || !query}
+                            className="p-4 bg-indigo-600 text-white rounded-xl hover:bg-indigo-500 transition-all disabled:opacity-50"
+                          >
+                             {chatLoading ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={startLiveSession}
+                            className="p-4 bg-emerald-600 text-white rounded-xl hover:bg-emerald-500 transition-all"
+                            title="Start Voice Session"
+                          >
+                             <Mic size={16} />
+                          </button>
+                       </form>
+                    ) : (
+                       <div className="flex items-center justify-between bg-emerald-900/20 border border-emerald-500/30 rounded-2xl p-4">
+                          <div className="flex items-center gap-3">
+                             <div className="relative">
+                                <span className="absolute -inset-1 rounded-full bg-emerald-500 opacity-20 animate-ping"></span>
+                                <Mic size={20} className="text-emerald-400 relative z-10" />
+                             </div>
+                             <span className="text-xs font-black text-emerald-400 uppercase tracking-widest">Voice Link Active</span>
+                          </div>
+                          <button onClick={stopLiveSession} className="px-4 py-2 bg-rose-600 text-white text-[10px] font-black uppercase rounded-lg hover:bg-rose-500 transition-all">
+                             Terminate
+                          </button>
+                       </div>
+                    )}
                  </div>
               </div>
            </div>
