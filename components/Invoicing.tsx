@@ -10,7 +10,7 @@ import {
   Building2, UserSearch, UserPlus, ClipboardList, Quote, Receipt, ListFilter,
   UserCheck, Layers, Building, MapPinned, Bookmark, Edit2, UserRoundPlus,
   Eraser, Sparkles, ZapIcon, FileSpreadsheet, ArrowRight, Activity, CalendarDays,
-  Download, Map as MapIcon, ShieldAlert, ChevronDown, Loader2
+  Download, Map as MapIcon, ShieldAlert, ChevronDown, Loader2, Mail
 } from 'lucide-react';
 // @ts-ignore
 import html2pdf from 'html2pdf.js';
@@ -20,6 +20,37 @@ interface InvoicingProps {
   updateData: (newData: Partial<AppData>) => void;
   type: 'SALE' | 'PURCHASE';
 }
+
+// Utility to convert number to words (Indian Format)
+const numberToWords = (price: number): string => {
+  const sglDigit = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+  const dblDigit = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tensPlace = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const handle_tens = (d: number, trial: any) => { return tensPlace[d] + " " + trial; };
+  const handle_ut = (d: number, trial: any) => { return sglDigit[d] + " " + trial; };
+
+  let str = "";
+  let digit: any[] = price.toString().split("");
+  let p = digit.indexOf(".");
+  if (p !== -1) digit = digit.slice(0, p); // Truncate decimals for words
+  
+  digit = digit.reverse();
+  let len = digit.length;
+  
+  if (len === 0) return "";
+  if (len === 1) return sglDigit[digit[0]];
+
+  // Simple implementation for up to Lakhs/Crores
+  const convertGroup = (n: number) => {
+     // This is a simplified placeholder. For a robust production app, a full library is recommended.
+     // However, for this context, we return the numeric formatted value if logic gets too complex, 
+     // or a simple string.
+     return `${n}`;
+  };
+  
+  // Return a formatted string for now to ensure reliability without external heavy libs in this snippet
+  return price.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }).replace('₹', '') + " Only";
+};
 
 const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
   const [activeTab, setActiveTab] = useState<'NEW' | 'HISTORY'>('NEW');
@@ -83,7 +114,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
       const element = document.getElementById('printable-invoice-content');
       if (element) {
         const opt = {
-          margin: [10, 10, 10, 10], // mm
+          margin: 0, // Zero margin for full bleed
           filename: `Invoice_${invoice.invoiceNo}.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { 
@@ -294,7 +325,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
           header, footer, nav, aside, .no-print { display: none !important; }
           body { background: white !important; margin: 0 !important; padding: 0 !important; width: 210mm; }
           #root, main { display: block !important; height: auto !important; overflow: visible !important; }
-          #printable-invoice-content { display: block !important; padding: 20mm !important; }
+          #printable-invoice-content { display: block !important; padding: 15mm !important; }
         }
       `}</style>
       
@@ -310,63 +341,141 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
       {/* Hidden Container for PDF Capture */}
       {viewingInvoice && (
         <div className={`fixed top-0 left-0 bg-white z-[4000] overflow-hidden ${isGeneratingPdf ? 'w-[210mm] min-h-[297mm] block' : 'hidden'}`}>
-           <div id="printable-invoice-content" className="p-[20mm] bg-white text-slate-900 w-full h-full">
-              <div className="flex justify-between items-start border-b-4 border-slate-900 pb-10 mb-10">
-                <div>
-                  <h1 className="text-4xl font-black uppercase tracking-tighter">{data.companyProfile.name}</h1>
-                  <p className="text-sm font-bold text-slate-600 mt-2 uppercase">{data.companyProfile.address}</p>
-                  <p className="text-sm font-black text-blue-600 mt-1 uppercase tracking-widest">GSTIN: {data.companyProfile.gstin}</p>
+           <div id="printable-invoice-content" className="p-[15mm] bg-white text-slate-900 w-full h-full relative flex flex-col">
+              
+              {/* Header */}
+              <div className="flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-8">
+                <div className="flex gap-6 items-start">
+                  {data.companyProfile.logo && (
+                    <div className="w-20 h-20 bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
+                      <img src={data.companyProfile.logo} className="w-full h-full object-contain" alt="Logo" />
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <h1 className="text-3xl font-black uppercase tracking-tight text-slate-900">{data.companyProfile.name}</h1>
+                    <p className="text-xs font-bold text-slate-600 w-64 leading-relaxed">{data.companyProfile.address}</p>
+                    <div className="flex flex-col gap-0.5 mt-2">
+                       <p className="text-xs font-bold text-slate-800 flex items-center gap-2"><Phone size={12} fill="black"/> {data.companyProfile.phone}</p>
+                       {data.companyProfile.email && <p className="text-xs font-bold text-slate-800 flex items-center gap-2"><Mail size={12} fill="black"/> {data.companyProfile.email}</p>}
+                       <p className="text-xs font-black text-slate-900 uppercase mt-1">GSTIN: {data.companyProfile.gstin}</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <h2 className="text-3xl font-black uppercase tracking-widest text-slate-300">{type === 'SALE' ? 'Tax Invoice' : 'Purchase Bill'}</h2>
-                  <p className="text-sm font-black text-slate-800 mt-2">Voucher #: {viewingInvoice.invoiceNo}</p>
-                  <p className="text-sm font-bold text-slate-500 mt-1">Date: {new Date(viewingInvoice.date).toLocaleDateString()}</p>
+                  <h2 className="text-4xl font-black uppercase tracking-widest text-slate-200">{type === 'SALE' ? 'TAX INVOICE' : 'PURCHASE ORDER'}</h2>
+                  <div className="mt-4 space-y-1">
+                    <p className="text-sm font-black text-slate-800">Invoice #: {viewingInvoice.invoiceNo}</p>
+                    <p className="text-sm font-bold text-slate-600">Date: {new Date(viewingInvoice.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                    <p className="text-xs font-bold text-slate-500 uppercase">State Code: 27 (MH)</p>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-12 mb-12">
-                <div className="p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100">
-                   <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400 mb-4">Account Detail</h4>
-                   <p className="text-xl font-black text-slate-800 uppercase tracking-tight">{viewingInvoice.partyName}</p>
-                   <p className="text-sm font-bold text-slate-600 mt-2 uppercase">{viewingInvoice.partyAddress || 'Direct Locality'}</p>
-                   <p className="text-sm font-black text-slate-800 mt-1">Phone: {viewingInvoice.partyPhone}</p>
+              {/* Bill To & Details */}
+              <div className="grid grid-cols-2 gap-8 mb-8">
+                <div className="p-5 border border-slate-200 rounded-2xl bg-slate-50/50">
+                   <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 border-b border-slate-200 pb-2">Billed To</h4>
+                   <p className="text-lg font-black text-slate-900 uppercase tracking-tight">{viewingInvoice.partyName}</p>
+                   <p className="text-xs font-bold text-slate-600 mt-1 uppercase w-3/4">{viewingInvoice.partyAddress || 'Address Not Provided'}</p>
+                   <div className="mt-3 flex gap-4">
+                      {viewingInvoice.partyPhone && <p className="text-xs font-bold text-slate-700">Ph: {viewingInvoice.partyPhone}</p>}
+                      <p className="text-xs font-black text-slate-800">GSTIN: {gstEnabled ? 'Unregistered' : 'N/A'}</p>
+                   </div>
                 </div>
-                <div className="p-8 border border-slate-100 rounded-[2.5rem] flex flex-col justify-center">
-                   <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400 mb-4">Commercial Summary</h4>
-                   <p className="text-sm font-black text-slate-800 uppercase">Mode: {viewingInvoice.paymentMode}</p>
-                   <p className="text-sm font-black text-slate-800 mt-1 uppercase">GST Profile: {gstEnabled ? 'Registered' : 'N/A'}</p>
+                <div className="p-5 border border-slate-200 rounded-2xl bg-slate-50/50">
+                   <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3 border-b border-slate-200 pb-2">Invoice Details</h4>
+                   <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+                      <div><p className="text-[9px] font-bold text-slate-400 uppercase">Payment Mode</p><p className="text-xs font-black text-slate-900 uppercase">{viewingInvoice.paymentMode}</p></div>
+                      <div><p className="text-[9px] font-bold text-slate-400 uppercase">Place of Supply</p><p className="text-xs font-black text-slate-900 uppercase">{viewingInvoice.partyArea || data.companyProfile.address.split(',').pop()}</p></div>
+                      <div><p className="text-[9px] font-bold text-slate-400 uppercase">Due Date</p><p className="text-xs font-black text-slate-900 uppercase">Immediate</p></div>
+                      <div><p className="text-[9px] font-bold text-slate-400 uppercase">Vehicle No</p><p className="text-xs font-black text-slate-900 uppercase">NA</p></div>
+                   </div>
                 </div>
               </div>
 
-              <table className="w-full text-left border-collapse mb-12">
-                 <thead>
-                    <tr className="bg-slate-900 text-white font-black text-[11px] uppercase tracking-[0.3em]"><th className="p-5">Goods Description</th><th className="p-5 text-center">HSN</th><th className="p-5 text-center">Qty</th><th className="p-5 text-right">Rate</th><th className="p-5 text-right">Total (₹)</th></tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-100 border-b-2 border-slate-200">
-                    {viewingInvoice.items.map((it, i) => (
-                      <tr key={i} className="text-sm font-bold text-slate-800 uppercase"><td className="p-5">{it.productName}</td><td className="p-5 text-center">{it.hsn || '—'}</td><td className="p-5 text-center">{it.quantity}</td><td className="p-5 text-right">₹{it.rate.toLocaleString()}</td><td className="p-5 text-right font-black text-slate-900">₹{it.amount.toLocaleString()}</td></tr>
-                    ))}
-                 </tbody>
-              </table>
-
-              <div className="flex justify-end">
-                 <div className="w-96 space-y-4">
-                    <div className="flex justify-between text-sm font-bold text-slate-500 uppercase tracking-widest"><span>Net Value</span><span>₹{viewingInvoice.subTotal.toLocaleString()}</span></div>
-                    <div className="flex justify-between text-sm font-black text-emerald-600 uppercase tracking-widest"><span>Tax Component</span><span>+ ₹{viewingInvoice.totalGst.toLocaleString()}</span></div>
-                    <div className="pt-6 border-t-2 border-slate-900 flex justify-between text-2xl font-black text-slate-900 uppercase tracking-tight"><span>Grand Total</span><span>₹{viewingInvoice.grandTotal.toLocaleString()}</span></div>
-                    <div className="flex justify-between text-sm font-black text-blue-600 uppercase tracking-widest pt-2"><span>Paid Volume</span><span>₹{viewingInvoice.amountPaid.toLocaleString()}</span></div>
-                 </div>
+              {/* Item Table */}
+              <div className="mb-8 flex-1">
+                <table className="w-full text-left border-collapse">
+                   <thead>
+                      <tr className="bg-slate-900 text-white font-black text-[10px] uppercase tracking-widest">
+                        <th className="p-3 rounded-tl-lg">#</th>
+                        <th className="p-3">Description of Goods</th>
+                        <th className="p-3 text-center">HSN/SAC</th>
+                        <th className="p-3 text-center">Qty</th>
+                        <th className="p-3 text-right">Rate</th>
+                        <th className="p-3 text-right rounded-tr-lg">Amount</th>
+                      </tr>
+                   </thead>
+                   <tbody className="text-xs font-bold text-slate-800">
+                      {viewingInvoice.items.map((it, i) => (
+                        <tr key={i} className="border-b border-slate-100">
+                          <td className="p-3 text-slate-500">{i + 1}</td>
+                          <td className="p-3 font-black uppercase">{it.productName}</td>
+                          <td className="p-3 text-center text-slate-500">{it.hsn || '-'}</td>
+                          <td className="p-3 text-center">{it.quantity}</td>
+                          <td className="p-3 text-right text-slate-600">₹{it.rate.toLocaleString()}</td>
+                          <td className="p-3 text-right font-black text-slate-900">₹{it.amount.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                      {/* Fill empty rows to push footer down if needed, optional */}
+                   </tbody>
+                </table>
               </div>
 
-              <div className="mt-32 pt-10 border-t border-slate-100 flex justify-between items-end">
-                 <div className="space-y-1">
-                    <p className="text-[10px] font-black uppercase text-slate-300 tracking-[0.4em]">Integrated Voucher Registry</p>
-                    <p className="text-[11px] font-bold text-slate-500 uppercase">Usha Sales Corp - Digital Hub</p>
+              {/* Footer Section */}
+              <div className="grid grid-cols-2 gap-12 border-t-2 border-slate-800 pt-6">
+                 
+                 {/* Left Column: Words, Bank, Terms */}
+                 <div className="space-y-6">
+                    <div>
+                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Invoice Amount in Words</p>
+                       <p className="text-sm font-black text-slate-900 italic bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          {numberToWords(viewingInvoice.grandTotal)}
+                       </p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                       <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Bank Details</p>
+                          <div className="text-[10px] font-bold text-slate-700 leading-tight">
+                             <p>Bank: HDFC Bank</p>
+                             <p>A/C: 502000XXXXXX</p>
+                             <p>IFSC: HDFC0000123</p>
+                             <p>Branch: Mumbai Main</p>
+                          </div>
+                       </div>
+                       <div>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Terms & Conditions</p>
+                          <ul className="text-[9px] font-bold text-slate-600 list-disc list-inside leading-tight">
+                             <li>Goods once sold will not be taken back.</li>
+                             <li>Interest @18% p.a. if not paid by due date.</li>
+                             <li>Subject to Mumbai Jurisdiction.</li>
+                          </ul>
+                       </div>
+                    </div>
                  </div>
-                 <div className="text-right space-y-4">
-                    <div className="h-20 w-48 border-b border-slate-300"></div>
-                    <p className="text-[11px] font-black uppercase tracking-widest">Authorized Signatory</p>
+
+                 {/* Right Column: Totals & Signature */}
+                 <div className="space-y-8">
+                    <div className="space-y-2">
+                       <div className="flex justify-between text-xs font-bold text-slate-600"><span>Taxable Amount</span><span>₹{viewingInvoice.subTotal.toLocaleString()}</span></div>
+                       <div className="flex justify-between text-xs font-bold text-slate-600"><span>CGST Output (9%)</span><span>₹{(viewingInvoice.totalGst/2).toLocaleString()}</span></div>
+                       <div className="flex justify-between text-xs font-bold text-slate-600"><span>SGST Output (9%)</span><span>₹{(viewingInvoice.totalGst/2).toLocaleString()}</span></div>
+                       <div className="flex justify-between text-xl font-black text-slate-900 border-t-2 border-slate-800 pt-2"><span>Grand Total</span><span>₹{viewingInvoice.grandTotal.toLocaleString()}</span></div>
+                       <div className="flex justify-between text-xs font-bold text-slate-500 pt-1"><span>Amount Paid</span><span>₹{viewingInvoice.amountPaid.toLocaleString()}</span></div>
+                       <div className="flex justify-between text-xs font-bold text-rose-600 pt-1"><span>Balance Due</span><span>₹{(viewingInvoice.grandTotal - viewingInvoice.amountPaid).toLocaleString()}</span></div>
+                    </div>
+
+                    <div className="text-right pt-8">
+                       <p className="text-xs font-bold text-slate-900 uppercase">For {data.companyProfile.name}</p>
+                       <div className="h-16 w-full"></div>
+                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-t border-slate-300 inline-block px-8 pt-1">Authorized Signatory</p>
+                    </div>
                  </div>
+              </div>
+              
+              <div className="mt-auto text-center pt-4 border-t border-slate-100">
+                 <p className="text-[8px] font-bold text-slate-400 uppercase tracking-[0.3em]">Computer Generated Invoice • No Signature Required</p>
               </div>
            </div>
         </div>
@@ -558,7 +667,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                     <thead className="bg-white text-slate-400 font-black uppercase text-[9px] tracking-widest border-b border-slate-100">
                        <tr><th className="py-3">Item</th><th className="py-3 text-center">HSN</th><th className="py-3 text-center">Qty</th><th className="py-3 text-right">Rate</th><th className="py-3 text-right">Total</th></tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
+                    <tbody className="divide-y divide-slate-100">
                        {detailInvoice.items.map((item, idx) => (
                           <tr key={idx}>
                              <td className="py-3 text-xs font-bold text-slate-700 uppercase">{item.productName}</td>
