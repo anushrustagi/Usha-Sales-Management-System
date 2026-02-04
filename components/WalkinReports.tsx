@@ -5,7 +5,8 @@ import {
   Users, TrendingUp, Calendar, ShoppingBag, Package, Activity, Search, 
   Sparkles, Loader2, Zap, ArrowLeft, ArrowUpRight, BarChart3, Clock, 
   MessageSquare, ChevronRight, Filter, IndianRupee, Trash2, MapPinned, Tag,
-  Download, FileSpreadsheet, Send, UserCheck, Map as MapIcon, Footprints
+  Download, FileSpreadsheet, Send, UserCheck, Map as MapIcon, Footprints,
+  Target, Flame
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
@@ -54,6 +55,21 @@ const WalkinReports: React.FC<WalkinReportsProps> = ({ data, updateData }) => {
   
   const recentLogs = useMemo(() => {
       return [...data.walkInRecords].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [data.walkInRecords]);
+
+  // Walk-in Product Demand Analysis
+  const walkinProductDemand = useMemo(() => {
+    const counts: Record<string, number> = {};
+    data.walkInRecords.forEach(r => {
+      if (r.productName) {
+        const name = r.productName.toUpperCase().trim();
+        counts[name] = (counts[name] || 0) + 1;
+      }
+    });
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5); // Top 5 requested products
   }, [data.walkInRecords]);
 
   // Catchment Intelligence
@@ -112,16 +128,18 @@ const WalkinReports: React.FC<WalkinReportsProps> = ({ data, updateData }) => {
       const context = {
         footfallTrend: footfallTrend.slice(-7), // Last week trend
         catchmentAnalysis: catchmentData.slice(0, 10).map(c => `${c.name} (Revenue: ${c.revenue})`),
-        topLeads: marketingLeads.slice(0, 10).map(l => `${l.name} (${l.area}) - Spend: ${l.totalSpend}`)
+        topLeads: marketingLeads.slice(0, 10).map(l => `${l.name} (${l.area}) - Spend: ${l.totalSpend}`),
+        walkinDemands: walkinProductDemand.map(p => `${p.name} (${p.count} inquiries)`)
       };
 
       const prompt = `Act as a Chief Strategy Officer for a retail business. 
       Analyze the following data: ${JSON.stringify(context)}.
       
-      Provide a deep, strategic analysis with 3 specific sections:
-      1. **Catchment Domination**: Which areas are gold mines? Where should we place physical ads?
-      2. **Conversion Tactics**: Based on top leads, suggest a specific SMS campaign theme to boost repeat visits.
-      3. **Footfall Forecast**: Based on the trend, what is the outlook for next week and how should staff be rostered?
+      Provide a deep, strategic analysis with 4 specific sections:
+      1. **Inventory Alert**: Analyze the 'walkinDemands'. Which specific products are driving footfall? Suggest immediate stocking or display strategies for these high-demand items.
+      2. **Catchment Domination**: Which areas are gold mines? Where should we place physical ads?
+      3. **Conversion Tactics**: Based on top leads, suggest a specific SMS campaign theme to boost repeat visits.
+      4. **Footfall Forecast**: Based on the trend, what is the outlook for next week and how should staff be rostered?
       
       Keep it professional, concise, and highly actionable. Avoid generic advice.`;
 
@@ -183,18 +201,28 @@ const WalkinReports: React.FC<WalkinReportsProps> = ({ data, updateData }) => {
                  </div>
               </div>
 
-              <div className="bg-slate-900 p-8 rounded-[3rem] text-white shadow-2xl flex flex-col relative overflow-hidden">
+              <div className="bg-slate-900 p-8 rounded-[3rem] text-white shadow-2xl flex flex-col relative overflow-hidden border border-white/5">
                  <div className="relative z-10 space-y-6">
-                    <h3 className="font-black text-lg uppercase tracking-widest flex items-center gap-3"><Activity className="text-orange-500"/> Engagement</h3>
-                    <div className="space-y-4">
-                       <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Peak Day</p>
-                          <p className="text-2xl font-black">{footfallTrend.sort((a,b) => b.count - a.count)[0]?.date || 'N/A'}</p>
-                       </div>
-                       <div className="p-4 bg-white/5 rounded-2xl border border-white/10">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Conversion Potential</p>
-                          <p className="text-2xl font-black text-emerald-400">~{marketingLeads.length} Leads</p>
-                       </div>
+                    <div className="flex items-center justify-between">
+                       <h3 className="font-black text-lg uppercase tracking-widest flex items-center gap-3"><Flame className="text-orange-500"/> Demand Radar</h3>
+                       <div className="px-2 py-1 rounded bg-white/10 text-[9px] font-black uppercase tracking-widest">Top Inquiries</div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                       {walkinProductDemand.length > 0 ? walkinProductDemand.map((prod, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-all">
+                             <div className="flex items-center gap-3">
+                                <div className="w-6 h-6 rounded-lg bg-orange-500 flex items-center justify-center font-black text-[10px] text-white shadow-lg">{idx + 1}</div>
+                                <span className="text-xs font-bold uppercase tracking-tight text-slate-200 group-hover:text-white transition-colors">{prod.name}</span>
+                             </div>
+                             <span className="text-[10px] font-black text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-lg">{prod.count} Hits</span>
+                          </div>
+                       )) : (
+                          <div className="py-8 text-center opacity-30">
+                             <Target size={32} className="mx-auto mb-2 text-white" />
+                             <p className="text-[9px] font-black text-white uppercase tracking-widest">No Product Data</p>
+                          </div>
+                       )}
                     </div>
                  </div>
                  <Footprints size={200} className="absolute -bottom-10 -right-10 text-white opacity-5" />
