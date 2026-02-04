@@ -44,11 +44,17 @@ const Header: React.FC<HeaderProps> = ({ activeView, setActiveView, businessName
     e.preventDefault();
     if (!aiQuery.trim() || !isOnline) return;
     
+    const apiKey = data.companyProfile.apiKey || process.env.API_KEY;
+    if (!apiKey) {
+      setAiResponse("System Error: API Key missing. Please configure in Settings.");
+      return;
+    }
+
     setIsAiLoading(true);
     setAiResponse('');
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       
       const context = {
         business: businessName,

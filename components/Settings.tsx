@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { AppData, CompanyProfile } from '../types';
-import { Save, Building2, MapPin, Phone, Mail, FileText, Landmark, Trash2, ShieldCheck, CheckCircle2, Percent, Download, Upload, AlertTriangle, ListFilter, Plus, Tag, Database, Activity, HardDrive, Image as ImageIcon, Camera, X, ShieldEllipsis, ShieldAlert, AlertCircle } from 'lucide-react';
+import { Save, Building2, MapPin, Phone, Mail, FileText, Landmark, Trash2, ShieldCheck, CheckCircle2, Percent, Download, Upload, AlertTriangle, ListFilter, Plus, Tag, Database, Activity, HardDrive, Image as ImageIcon, Camera, X, ShieldEllipsis, ShieldAlert, AlertCircle, BrainCircuit } from 'lucide-react';
 
 interface SettingsProps {
   data: AppData;
@@ -108,6 +108,24 @@ const Settings: React.FC<SettingsProps> = ({ data, updateData }) => {
           </div>
         </div>
         <button onClick={handleSaveAll} className="px-10 py-4 bg-blue-600 text-white font-black text-[11px] rounded-2xl flex items-center gap-3 shadow-xl hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-widest"><Save size={18} /> Commit System Changes</button>
+      </div>
+
+      {/* AI Configuration Section */}
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex items-center gap-4">
+          <div className="p-3 bg-purple-100 text-purple-600 rounded-2xl"><BrainCircuit size={22} /></div>
+          <div><h3 className="font-black text-slate-800 uppercase tracking-wider text-xs">AI Neural Config</h3><p className="text-[9px] text-slate-400 uppercase font-bold mt-1 tracking-widest">Gemini API Connection</p></div>
+        </div>
+        <div className="p-10 space-y-6">
+           <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">API Key</label>
+              <div className="relative">
+                 <input type="password" className="w-full border-2 border-slate-100 rounded-2xl p-4 focus:border-purple-500 outline-none text-sm font-bold text-slate-700 bg-slate-50/50 pr-12" placeholder="AIza..." value={profile.apiKey || ''} onChange={e => setProfile({...profile, apiKey: e.target.value})} />
+                 <div className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-500"><ShieldCheck size={18}/></div>
+              </div>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Required for Brain, Forecasting & Smart features. Data stays local.</p>
+           </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

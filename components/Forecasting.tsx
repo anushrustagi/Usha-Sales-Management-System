@@ -55,10 +55,16 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
       setErrorMsg("System Offline. Connect to internet for AI analysis.");
       return;
     }
+    const apiKey = data.companyProfile.apiKey || process.env.API_KEY;
+    if (!apiKey) {
+      setErrorMsg("API Key Missing. Please configure it in Settings.");
+      return;
+    }
+
     setLoading(true);
     setErrorMsg('');
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       
       // --- 1. Pre-process Data for "Deep Analysis" ---
       

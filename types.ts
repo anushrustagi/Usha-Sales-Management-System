@@ -29,7 +29,8 @@ export interface CompanyProfile {
   gstin: string;
   email: string;
   currency: string;
-  logo?: string; 
+  logo?: string;
+  apiKey?: string; // New: AI API Key storage
 }
 
 export interface Product {

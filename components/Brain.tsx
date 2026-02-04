@@ -93,14 +93,15 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
       setChatResponse("Cannot connect: System Offline.");
       return;
     }
-    if (!process.env.API_KEY) {
-      setChatResponse("Configuration Error: API Key missing in environment.");
+    const apiKey = data.companyProfile.apiKey || process.env.API_KEY;
+    if (!apiKey) {
+      setChatResponse("Configuration Error: API Key missing in Settings.");
       return;
     }
 
     try {
       setIsLiveActive(true);
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       
       const contextSummary = getContextSummary();
       const systemInstruction = `You are the AI Business Manager for ${data.companyProfile.name}. 
@@ -273,8 +274,9 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
       setError("System Offline. Check internet connection.");
       return;
     }
-    if (!process.env.API_KEY) {
-      setError("API Key not configured. Please add your Gemini API Key to the environment.");
+    const apiKey = data.companyProfile.apiKey || process.env.API_KEY;
+    if (!apiKey) {
+      setError("API Key not configured. Please add your Gemini API Key in Settings.");
       return;
     }
 
@@ -282,7 +284,7 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
     setError(null);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       const summary = getContextSummary(); // Get fresh data
       
       const prompt = `Act as the Chief Operating Officer (COO) AI.
@@ -350,7 +352,7 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
       setAnalysis(result);
     } catch (e: any) {
       console.error("Brain Scan Failed", e);
-      setError(`Neural connection failed: ${e.message || "Unknown error"}. Check API Key.`);
+      setError(`Neural connection failed: ${e.message || "Unknown error"}. Check API Key in Settings.`);
     } finally {
       setLoading(false);
     }
@@ -360,8 +362,9 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
   const handleSmartChat = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || !isOnline) return;
-    if (!process.env.API_KEY) {
-        setChatResponse("Error: API Key is missing. Cannot process query.");
+    const apiKey = data.companyProfile.apiKey || process.env.API_KEY;
+    if (!apiKey) {
+        setChatResponse("Error: API Key is missing. Configure in Settings.");
         return;
     }
     
@@ -369,7 +372,7 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
     setChatResponse(''); // Clear previous response
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       const context = getContextSummary();
       
       const responseStream = await ai.models.generateContentStream({
@@ -421,7 +424,7 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
                     <h1 className="text-4xl font-black tracking-tighter uppercase leading-none bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">Master Brain</h1>
                     <div className="flex items-center gap-2 mt-2">
                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Central Intelligence Unit</p>
-                       {!process.env.API_KEY && (
+                       {!(data.companyProfile.apiKey || process.env.API_KEY) && (
                           <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 text-[8px] font-black uppercase tracking-widest border border-rose-500/50 rounded">API Key Missing</span>
                        )}
                     </div>

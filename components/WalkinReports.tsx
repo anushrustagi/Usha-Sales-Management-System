@@ -121,9 +121,15 @@ const WalkinReports: React.FC<WalkinReportsProps> = ({ data, updateData }) => {
 
   const handleRunAiAnalysis = async () => {
     if (marketingLeads.length === 0 && totalFootfall === 0) return;
+    const apiKey = data.companyProfile.apiKey || process.env.API_KEY;
+    if (!apiKey) {
+      setAiAnalysis("Error: API Key missing. Please set it in Settings.");
+      return;
+    }
+
     setIsAiLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       
       const context = {
         footfallTrend: footfallTrend.slice(-7), // Last week trend
@@ -149,7 +155,7 @@ const WalkinReports: React.FC<WalkinReportsProps> = ({ data, updateData }) => {
       });
       
       setAiAnalysis(response.text || "No insights found.");
-    } catch (err) { setAiAnalysis("Error reaching core intelligence. Check network."); } finally { setIsAiLoading(false); }
+    } catch (err) { setAiAnalysis("Error reaching core intelligence. Check network or API Key."); } finally { setIsAiLoading(false); }
   };
 
   return (
