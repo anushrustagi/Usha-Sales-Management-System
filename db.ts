@@ -11,7 +11,8 @@ const defaultProfile: CompanyProfile = {
   phone: '+91 98765 43210',
   gstin: '27AAAAA0000A1Z5',
   email: 'contact@ushasales.com',
-  currency: 'INR'
+  currency: 'INR',
+  apiKey: 'AIzaSyAx1Ioi2786grsi8kmhCUAMfVJNYLyOwD8'
 };
 
 const defaultAuth: AuthState = {

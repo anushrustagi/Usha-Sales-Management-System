@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { AppData, CompanyProfile } from '../types';
-import { Save, Building2, MapPin, Phone, Mail, FileText, Landmark, Trash2, ShieldCheck, CheckCircle2, Percent, Download, Upload, AlertTriangle, ListFilter, Plus, Tag, Database, Activity, HardDrive, Image as ImageIcon, Camera, X, ShieldEllipsis, ShieldAlert, AlertCircle, BrainCircuit } from 'lucide-react';
+import { Save, Building2, MapPin, Phone, Mail, FileText, Landmark, Trash2, ShieldCheck, CheckCircle2, Percent, Download, Upload, AlertTriangle, ListFilter, Plus, Tag, Database, Activity, HardDrive, Image as ImageIcon, Camera, X, ShieldEllipsis, ShieldAlert, AlertCircle, BrainCircuit, Eye, EyeOff } from 'lucide-react';
 
 interface SettingsProps {
   data: AppData;
@@ -15,6 +15,7 @@ const Settings: React.FC<SettingsProps> = ({ data, updateData }) => {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [storageUsed, setStorageUsed] = useState('0 KB');
+  const [showApiKey, setShowApiKey] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -120,8 +121,20 @@ const Settings: React.FC<SettingsProps> = ({ data, updateData }) => {
            <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">API Key</label>
               <div className="relative">
-                 <input type="password" className="w-full border-2 border-slate-100 rounded-2xl p-4 focus:border-purple-500 outline-none text-sm font-bold text-slate-700 bg-slate-50/50 pr-12" placeholder="AIza..." value={profile.apiKey || ''} onChange={e => setProfile({...profile, apiKey: e.target.value})} />
-                 <div className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-500"><ShieldCheck size={18}/></div>
+                 <input 
+                    type={showApiKey ? "text" : "password"} 
+                    className="w-full border-2 border-slate-100 rounded-2xl p-4 focus:border-purple-500 outline-none text-sm font-bold text-slate-700 bg-slate-50/50 pr-12" 
+                    placeholder="AIza..." 
+                    value={profile.apiKey || ''} 
+                    onChange={e => setProfile({...profile, apiKey: e.target.value})} 
+                 />
+                 <button 
+                    onClick={() => setShowApiKey(!showApiKey)} 
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-500 hover:text-purple-700 transition-colors"
+                    title={showApiKey ? "Hide Key" : "Show Key"}
+                 >
+                    {showApiKey ? <EyeOff size={18}/> : <Eye size={18}/>}
+                 </button>
               </div>
               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Required for Brain, Forecasting & Smart features. Data stays local.</p>
            </div>
@@ -181,6 +194,7 @@ const Settings: React.FC<SettingsProps> = ({ data, updateData }) => {
           <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">GSTIN</label><input type="text" className="w-full border-2 border-slate-100 rounded-2xl p-4 focus:border-blue-500 outline-none text-sm font-black uppercase text-slate-700 bg-slate-50/50" value={profile.gstin} onChange={e => setProfile({...profile, gstin: e.target.value})} /></div>
           <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Primary Phone</label><input type="text" className="w-full border-2 border-slate-100 rounded-2xl p-4 focus:border-blue-500 outline-none text-sm font-bold text-slate-700 bg-slate-50/50" value={profile.phone} onChange={e => setProfile({...profile, phone: e.target.value})} /></div>
           <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label><input type="email" className="w-full border-2 border-slate-100 rounded-2xl p-4 focus:border-blue-500 outline-none text-sm font-bold text-slate-700 bg-slate-50/50" value={profile.email} onChange={e => setProfile({...profile, email: e.target.value})} /></div>
+          <div className="space-y-2 md:col-span-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Business Address</label><textarea className="w-full border-2 border-slate-100 rounded-2xl p-4 focus:border-blue-500 outline-none text-sm font-bold text-slate-700 bg-slate-50/50" rows={3} value={profile.address} onChange={e => setProfile({...profile, address: e.target.value})} /></div>
         </div>
       </div>
 
