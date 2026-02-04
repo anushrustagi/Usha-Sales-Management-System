@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { AppData, PlannedTask } from '../types';
 import { GoogleGenAI, LiveServerMessage, Modality, Blob, GenerateContentResponse, Type } from "@google/genai";
 import { 
   Bot, BrainCircuit, Sparkles, Activity, ShieldAlert, Zap, 
   Lightbulb, CheckCircle2, AlertTriangle, ArrowRight, Loader2,
-  Terminal, MessageSquare, Send, RefreshCcw, Power, Plus, Mic, MicOff, Volume2
+  Terminal, MessageSquare, Send, RefreshCcw, Power, Plus, Mic, MicOff, Volume2,
+  Wifi, WifiOff, Lock
 } from 'lucide-react';
 
 interface BrainProps {
@@ -23,6 +25,7 @@ interface BrainAnalysis {
 const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
   const [analysis, setAnalysis] = useState<BrainAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [chatResponse, setChatResponse] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
@@ -91,7 +94,7 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
       return;
     }
     if (!process.env.API_KEY) {
-      setChatResponse("API Key missing in environment.");
+      setChatResponse("Configuration Error: API Key missing in environment.");
       return;
     }
 
@@ -200,7 +203,7 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
     } catch (e) {
       console.error("Failed to start live session", e);
       setIsLiveActive(false);
-      setChatResponse("Microphone Access Denied or API Error.");
+      setChatResponse("Microphone Access Denied or Connection Failed.");
     }
   };
 
@@ -266,8 +269,18 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
 
   // --- Deep Analysis Implementation ---
   const runFullScan = async () => {
-    if (!isOnline) return;
+    if (!isOnline) {
+      setError("System Offline. Check internet connection.");
+      return;
+    }
+    if (!process.env.API_KEY) {
+      setError("API Key not configured. Please add your Gemini API Key to the environment.");
+      return;
+    }
+
     setLoading(true);
+    setError(null);
+    
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const summary = getContextSummary(); // Get fresh data
@@ -335,8 +348,9 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
 
       const result = JSON.parse(response.text || '{}');
       setAnalysis(result);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Brain Scan Failed", e);
+      setError(`Neural connection failed: ${e.message || "Unknown error"}. Check API Key.`);
     } finally {
       setLoading(false);
     }
@@ -346,6 +360,10 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
   const handleSmartChat = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || !isOnline) return;
+    if (!process.env.API_KEY) {
+        setChatResponse("Error: API Key is missing. Cannot process query.");
+        return;
+    }
     
     setChatLoading(true);
     setChatResponse(''); // Clear previous response
@@ -364,7 +382,7 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
         setChatResponse(prev => prev + text);
       }
     } catch (e) {
-        setChatResponse("Link to neural core unstable. Please check internet.");
+        setChatResponse("Link to neural core unstable. Please check internet or API Key.");
     } finally {
         setChatLoading(false);
     }
@@ -396,12 +414,17 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
         <div className="relative z-10 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-10">
            <div className="space-y-4">
               <div className="flex items-center gap-4">
-                 <div className="p-3 bg-indigo-600 rounded-2xl shadow-[0_0_30px_rgba(79,70,229,0.5)] animate-pulse">
-                    <Bot size={32} className="text-white"/>
+                 <div className={`p-3 rounded-2xl shadow-[0_0_30px_rgba(79,70,229,0.5)] ${error ? 'bg-rose-600 animate-pulse' : 'bg-indigo-600'}`}>
+                    {error ? <AlertTriangle size={32} className="text-white"/> : <Bot size={32} className="text-white"/>}
                  </div>
                  <div>
                     <h1 className="text-4xl font-black tracking-tighter uppercase leading-none bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">Master Brain</h1>
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] mt-2">Central Intelligence Unit</p>
+                    <div className="flex items-center gap-2 mt-2">
+                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Central Intelligence Unit</p>
+                       {!process.env.API_KEY && (
+                          <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 text-[8px] font-black uppercase tracking-widest border border-rose-500/50 rounded">API Key Missing</span>
+                       )}
+                    </div>
                  </div>
               </div>
               <p className="max-w-xl text-slate-400 text-xs font-bold leading-relaxed uppercase tracking-wide">
@@ -433,6 +456,16 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
            <BrainCircuit className="w-full h-full text-indigo-500 transform scale-150 translate-x-20 translate-y-10" strokeWidth={0.5} />
         </div>
       </div>
+
+      {error && (
+         <div className="p-6 bg-rose-50 border border-rose-100 rounded-[2rem] flex items-center gap-4 text-rose-600 animate-in fade-in">
+            <ShieldAlert size={24} />
+            <div>
+               <h4 className="font-black text-sm uppercase tracking-widest">Connection Failure</h4>
+               <p className="text-xs font-bold opacity-80">{error}</p>
+            </div>
+         </div>
+      )}
 
       {analysis && (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
