@@ -104,15 +104,34 @@ const WalkinReports: React.FC<WalkinReportsProps> = ({ data, updateData }) => {
   };
 
   const handleRunAiAnalysis = async () => {
-    if (marketingLeads.length === 0) return;
+    if (marketingLeads.length === 0 && totalFootfall === 0) return;
     setIsAiLoading(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const context = marketingLeads.slice(0, 20).map(l => `${l.name} from ${l.area} spent ₹${l.totalSpend}`).join(' | ');
-      const prompt = `Act as a Marketing Strategist. Analyze this walk-in lead list: "${context}". 1. Identify which geographical areas are high-yield. 2. Suggest a specific SMS marketing campaign theme for these people. 3. Advice on localized physical advertisement placement. Brief points only.`;
-      const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
+      
+      const context = {
+        footfallTrend: footfallTrend.slice(-7), // Last week trend
+        catchmentAnalysis: catchmentData.slice(0, 10).map(c => `${c.name} (Revenue: ${c.revenue})`),
+        topLeads: marketingLeads.slice(0, 10).map(l => `${l.name} (${l.area}) - Spend: ${l.totalSpend}`)
+      };
+
+      const prompt = `Act as a Chief Strategy Officer for a retail business. 
+      Analyze the following data: ${JSON.stringify(context)}.
+      
+      Provide a deep, strategic analysis with 3 specific sections:
+      1. **Catchment Domination**: Which areas are gold mines? Where should we place physical ads?
+      2. **Conversion Tactics**: Based on top leads, suggest a specific SMS campaign theme to boost repeat visits.
+      3. **Footfall Forecast**: Based on the trend, what is the outlook for next week and how should staff be rostered?
+      
+      Keep it professional, concise, and highly actionable. Avoid generic advice.`;
+
+      const response = await ai.models.generateContent({ 
+        model: 'gemini-3-pro-preview', 
+        contents: prompt 
+      });
+      
       setAiAnalysis(response.text || "No insights found.");
-    } catch (err) { setAiAnalysis("Error reaching core intelligence."); } finally { setIsAiLoading(false); }
+    } catch (err) { setAiAnalysis("Error reaching core intelligence. Check network."); } finally { setIsAiLoading(false); }
   };
 
   return (
@@ -284,7 +303,7 @@ const WalkinReports: React.FC<WalkinReportsProps> = ({ data, updateData }) => {
           <div className="space-y-8">
              <div className="bg-slate-900 rounded-[2.5rem] border border-slate-800 shadow-2xl overflow-hidden flex flex-col h-full min-h-[500px]">
                 <div className="p-8 border-b border-white/5 bg-white/5 flex items-center justify-between">
-                   <div className="flex items-center gap-3"><Sparkles className="text-orange-400" size={20} /><h3 className="font-black text-white text-[11px] uppercase tracking-[0.2em]">Strategy Panel</h3></div>
+                   <div className="flex items-center gap-3"><Sparkles className="text-orange-400" size={20} /><h3 className="font-black text-white text-[11px] uppercase tracking-[0.2em]">Deep Strategy Panel</h3></div>
                    <button onClick={handleRunAiAnalysis} disabled={isAiLoading} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-all disabled:opacity-50"><Zap size={16}/></button>
                 </div>
                 <div className="p-10 flex-1 overflow-y-auto">
@@ -294,7 +313,7 @@ const WalkinReports: React.FC<WalkinReportsProps> = ({ data, updateData }) => {
                       <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
                          <Activity size={48} className="text-white" />
                          <p className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Ready for Analysis</p>
-                         <p className="text-[9px] text-slate-500 font-bold uppercase max-w-[180px]">Run Strategist to generate targeting insights based on leads.</p>
+                         <p className="text-[9px] text-slate-500 font-bold uppercase max-w-[180px]">Run Deep Scan to generate targeting insights and footfall predictions.</p>
                       </div>
                    )}
                 </div>
