@@ -12,7 +12,14 @@ const defaultProfile: CompanyProfile = {
   gstin: '27AAAAA0000A1Z5',
   email: 'contact@ushasales.com',
   currency: 'INR',
-  apiKey: 'AIzaSyAx1Ioi2786grsi8kmhCUAMfVJNYLyOwD8'
+  apiKey: 'AIzaSyAx1Ioi2786grsi8kmhCUAMfVJNYLyOwD8',
+  tagline: 'Authorized Distributors & Stockists',
+  bankDetails: {
+    bankName: 'HDFC Bank',
+    accNo: '502000XXXXXX',
+    ifsc: 'HDFC0000123',
+    branch: 'Mumbai Main'
+  }
 };
 
 const defaultAuth: AuthState = {
@@ -63,6 +70,8 @@ export const loadData = (): AppData => {
 const sanitizeData = (parsed: any): AppData => {
     if (!parsed.auth) parsed.auth = defaultAuth;
     if (!parsed.companyProfile) parsed.companyProfile = defaultProfile;
+    if (!parsed.companyProfile.bankDetails) parsed.companyProfile.bankDetails = defaultProfile.bankDetails;
+    if (!parsed.companyProfile.tagline) parsed.companyProfile.tagline = defaultProfile.tagline;
     if (!parsed.walkInRecords) parsed.walkInRecords = [];
     if (!parsed.others) parsed.others = [];
     if (!parsed.products) parsed.products = [];

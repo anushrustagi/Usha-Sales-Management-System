@@ -31,6 +31,13 @@ export interface CompanyProfile {
   currency: string;
   logo?: string;
   apiKey?: string; // New: AI API Key storage
+  tagline?: string; // New: Invoice Header Tagline
+  bankDetails?: {   // New: Default Bank Details
+    bankName: string;
+    accNo: string;
+    ifsc: string;
+    branch: string;
+  };
 }
 
 export interface Product {

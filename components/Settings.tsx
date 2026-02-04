@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { AppData, CompanyProfile } from '../types';
-import { Save, Building2, MapPin, Phone, Mail, FileText, Landmark, Trash2, ShieldCheck, CheckCircle2, Percent, Download, Upload, AlertTriangle, ListFilter, Plus, Tag, Database, Activity, HardDrive, Image as ImageIcon, Camera, X, ShieldEllipsis, ShieldAlert, AlertCircle, BrainCircuit, Eye, EyeOff } from 'lucide-react';
+import { Save, Building2, MapPin, Phone, Mail, FileText, Landmark, Trash2, ShieldCheck, CheckCircle2, Percent, Download, Upload, AlertTriangle, ListFilter, Plus, Tag, Database, Activity, HardDrive, Image as ImageIcon, Camera, X, ShieldEllipsis, ShieldAlert, AlertCircle, BrainCircuit, Eye, EyeOff, Receipt } from 'lucide-react';
 
 interface SettingsProps {
   data: AppData;
@@ -137,6 +137,36 @@ const Settings: React.FC<SettingsProps> = ({ data, updateData }) => {
                  </button>
               </div>
               <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Required for Brain, Forecasting & Smart features. Data stays local.</p>
+           </div>
+        </div>
+      </div>
+
+      {/* Invoice Configuration Section */}
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex items-center gap-4">
+          <div className="p-3 bg-emerald-100 text-emerald-600 rounded-2xl"><Receipt size={22} /></div>
+          <div><h3 className="font-black text-slate-800 uppercase tracking-wider text-xs">Invoice Configuration</h3><p className="text-[9px] text-slate-400 uppercase font-bold mt-1 tracking-widest">Default Layout & Banking</p></div>
+        </div>
+        <div className="p-10 space-y-8">
+           <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Invoice Header Tagline</label>
+              <input 
+                 className="w-full border-2 border-slate-100 rounded-2xl p-4 focus:border-emerald-500 outline-none text-sm font-bold text-slate-700 bg-slate-50/50" 
+                 placeholder="e.g. Authorized Distributors & Stockists" 
+                 value={profile.tagline || ''} 
+                 onChange={e => setProfile({...profile, tagline: e.target.value})} 
+              />
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Appears below Company Name in generated PDFs.</p>
+           </div>
+           
+           <div className="space-y-4">
+              <div className="flex items-center gap-2 text-emerald-700"><Landmark size={16}/><h4 className="text-[10px] font-black uppercase tracking-widest">Permanent Bank Details</h4></div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bank Name</label><input className="w-full border-2 border-slate-100 rounded-2xl p-4 font-bold bg-slate-50/50 outline-none focus:border-emerald-500" value={profile.bankDetails?.bankName || ''} onChange={e => setProfile({...profile, bankDetails: { ...profile.bankDetails!, bankName: e.target.value }})} /></div>
+                 <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Account No</label><input className="w-full border-2 border-slate-100 rounded-2xl p-4 font-bold bg-slate-50/50 outline-none focus:border-emerald-500" value={profile.bankDetails?.accNo || ''} onChange={e => setProfile({...profile, bankDetails: { ...profile.bankDetails!, accNo: e.target.value }})} /></div>
+                 <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">IFSC Code</label><input className="w-full border-2 border-slate-100 rounded-2xl p-4 font-bold bg-slate-50/50 outline-none focus:border-emerald-500" value={profile.bankDetails?.ifsc || ''} onChange={e => setProfile({...profile, bankDetails: { ...profile.bankDetails!, ifsc: e.target.value }})} /></div>
+                 <div className="space-y-2"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Branch</label><input className="w-full border-2 border-slate-100 rounded-2xl p-4 font-bold bg-slate-50/50 outline-none focus:border-emerald-500" value={profile.bankDetails?.branch || ''} onChange={e => setProfile({...profile, bankDetails: { ...profile.bankDetails!, branch: e.target.value }})} /></div>
+              </div>
            </div>
         </div>
       </div>

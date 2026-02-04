@@ -57,10 +57,10 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   
-  // Enhanced Fields State
+  // Enhanced Fields State - Initialize with defaults from profile
   const [subType, setSubType] = useState<'TAX_INVOICE' | 'DELIVERY_CHALLAN' | 'PROFORMA_INVOICE'>('TAX_INVOICE');
   const [isIgst, setIsIgst] = useState(false);
-  const [bankDetails, setBankDetails] = useState({ bankName: 'HDFC Bank', accNo: '502000XXXXXX', ifsc: 'HDFC0000123', branch: 'Mumbai Main' });
+  const [bankDetails, setBankDetails] = useState(data.companyProfile.bankDetails || { bankName: '', accNo: '', ifsc: '', branch: '' });
   const [terms, setTerms] = useState('Goods once sold will not be taken back.\nInterest @18% p.a. if not paid by due date.\nSubject to Mumbai Jurisdiction.');
   const [extraFields, setExtraFields] = useState({ ewayBill: '', vehicleNo: '', poNo: '', customerCare: data.companyProfile.phone });
 
@@ -294,6 +294,8 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
     setManualName(''); setManualPhone(''); setManualArea(''); setManualAddress(''); setManualGstin('');
     setInvoiceNo(`${type === 'SALE' ? 'SL' : 'PR'}-${Date.now().toString().slice(-6)}`);
     setSubType('TAX_INVOICE'); setIsIgst(false);
+    // Reset to defaults from profile
+    setBankDetails(data.companyProfile.bankDetails || { bankName: '', accNo: '', ifsc: '', branch: '' });
     setExtraFields({ ewayBill: '', vehicleNo: '', poNo: '', customerCare: data.companyProfile.phone });
   };
 
@@ -336,6 +338,13 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
         setItems(updatedItems);
     }
   }, [isIgst]);
+
+  const saveBankAsDefault = () => {
+    if(confirm("Set these bank details as the permanent default for future invoices?")) {
+        const updatedProfile = { ...data.companyProfile, bankDetails };
+        updateData({ companyProfile: updatedProfile });
+    }
+  };
 
   const themeClasses = {
     bg: type === 'SALE' ? 'bg-blue-600' : 'bg-emerald-600',
@@ -381,7 +390,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                             )}
                             <div>
                                 <h1 className="text-2xl font-black uppercase text-slate-900 tracking-tight leading-none">{data.companyProfile.name}</h1>
-                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Creative Business Agency</p>
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">{data.companyProfile.tagline || 'Business Management'}</p>
                                 <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">GSTIN: {data.companyProfile.gstin}</p>
                             </div>
                         </div>
@@ -688,7 +697,10 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
             {/* Terms & Bank Details Inputs */}
             <div className="bg-white rounded-[3.5rem] border border-slate-200 shadow-sm p-10 grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Landmark size={14}/> Bank Details (For Invoice)</h4>
+                    <div className="flex justify-between items-center">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"><Landmark size={14}/> Bank Details (For Invoice)</h4>
+                        <button onClick={saveBankAsDefault} className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:underline">Set as Default</button>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <input className="border-2 border-slate-100 rounded-xl p-3 text-xs font-bold bg-slate-50 outline-none" placeholder="Bank Name" value={bankDetails.bankName} onChange={e => setBankDetails({...bankDetails, bankName: e.target.value})} />
                         <input className="border-2 border-slate-100 rounded-xl p-3 text-xs font-bold bg-slate-50 outline-none" placeholder="Account No" value={bankDetails.accNo} onChange={e => setBankDetails({...bankDetails, accNo: e.target.value})} />
