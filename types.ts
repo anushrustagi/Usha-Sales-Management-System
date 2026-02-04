@@ -127,6 +127,22 @@ export interface Invoice {
   type: 'SALE' | 'PURCHASE';
   subType?: 'TAX_INVOICE' | 'DELIVERY_CHALLAN' | 'PROFORMA_INVOICE';
   paymentMode: 'CASH' | 'BANK' | 'UPI' | 'CHEQUE';
+  // Enhanced Fields
+  isIgst?: boolean;
+  roundOff?: number;
+  bankDetails?: {
+    bankName: string;
+    accNo: string;
+    ifsc: string;
+    branch: string;
+  };
+  terms?: string;
+  extraFields?: {
+    ewayBill?: string;
+    vehicleNo?: string;
+    poNo?: string;
+    customerCare?: string;
+  };
 }
 
 export interface Transaction {
