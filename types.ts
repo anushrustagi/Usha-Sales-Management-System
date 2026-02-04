@@ -12,7 +12,8 @@ export enum ViewType {
   SETTINGS = 'SETTINGS',
   WALKIN_REPORTS = 'WALKIN_REPORTS',
   BUDGETING = 'BUDGETING',
-  PLANNER = 'PLANNER'
+  PLANNER = 'PLANNER',
+  BRAIN = 'BRAIN'
 }
 
 export interface AuthState {

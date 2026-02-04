@@ -16,6 +16,7 @@ import Payments from './components/Payments';
 import WalkinReports from './components/WalkinReports';
 import Budgeting from './components/Budgeting';
 import Planner from './components/Planner';
+import Brain from './components/Brain';
 import Login from './components/Login';
 import { Search, Command, X, ArrowRight, User, Package, Calculator } from 'lucide-react';
 
@@ -67,6 +68,7 @@ const App: React.FC = () => {
       if (e.altKey && e.key.toLowerCase() === 'n') navigateTo(ViewType.SALES);
       if (e.altKey && e.key.toLowerCase() === 'd') navigateTo(ViewType.DASHBOARD);
       if (e.altKey && e.key.toLowerCase() === 'p') navigateTo(ViewType.PLANNER);
+      if (e.altKey && e.key.toLowerCase() === 'b') navigateTo(ViewType.BRAIN);
       if (e.altKey && e.key.toLowerCase() === 'l') setIsAuthenticated(false);
       if (e.key === 'Escape') setShowCommandPalette(false);
     };
@@ -127,6 +129,8 @@ const App: React.FC = () => {
         return <Budgeting data={data} updateData={updateData} />;
       case ViewType.PLANNER:
         return <Planner data={data} updateData={updateData} />;
+      case ViewType.BRAIN:
+        return <Brain data={data} updateData={updateData} />;
       default:
         return <Dashboard data={data} setActiveView={navigateTo} updateData={updateData} />;
     }

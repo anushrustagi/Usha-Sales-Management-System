@@ -18,7 +18,8 @@ import {
   Lock,
   LogOut,
   PiggyBank,
-  CalendarDays
+  CalendarDays,
+  Bot
 } from 'lucide-react';
 import { ViewType, AppData } from '../types';
 
@@ -35,6 +36,7 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, setIsOpen, companyName, logo, logout }) => {
   const menuItems = [
     { id: ViewType.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
+    { id: ViewType.BRAIN, label: 'Master Brain', icon: Bot },
     { id: ViewType.PLANNER, label: 'Task Planner', icon: CalendarDays },
     { id: ViewType.SALES, label: 'Sales', icon: ShoppingCart },
     { id: ViewType.PURCHASES, label: 'Purchases', icon: Store },
