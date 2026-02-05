@@ -72,6 +72,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
   const [manualName, setManualName] = useState('');
   const [manualPhone, setManualPhone] = useState('');
   const [manualArea, setManualArea] = useState('');
+  const [manualSubArea, setManualSubArea] = useState(''); // New: Sub-area
   const [manualAddress, setManualAddress] = useState('');
   const [manualGstin, setManualGstin] = useState('');
 
@@ -98,6 +99,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
         partyPhone: selectedParty?.phone || manualPhone,
         partyAddress: selectedParty?.address || manualAddress,
         partyArea: selectedParty?.area || manualArea,
+        partySubArea: selectedParty?.subArea || manualSubArea,
         items, subTotal: totals.subTotal, totalGst: totals.totalGst, grandTotal: totals.grandTotal,
         amountPaid, type, paymentMode,
         subType, isIgst, roundOff: totals.roundOff,
@@ -177,13 +179,14 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
     const partyPhone = isManual ? manualPhone : selectedParty?.phone;
     const partyAddress = isManual ? manualAddress : selectedParty?.address;
     const partyArea = isManual ? manualArea : selectedParty?.area;
+    const partySubArea = isManual ? manualSubArea : selectedParty?.subArea;
 
     const invoiceId = editingInvoice ? editingInvoice.id : Math.random().toString(36).substr(2, 9);
     
     const newInvoice: Invoice = {
       id: invoiceId, invoiceNo, date: new Date(invoiceDate).toISOString(), 
       partyId: selectedPartyId || 'WALKIN',
-      partyName, partyPhone, partyAddress, partyArea, items, 
+      partyName, partyPhone, partyAddress, partyArea, partySubArea, items, 
       subTotal: totals.subTotal, totalGst: totals.totalGst, grandTotal: totals.grandTotal,
       amountPaid, type, subType, paymentMode,
       isIgst, roundOff: totals.roundOff,
@@ -248,6 +251,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
        setManualPhone(inv.partyPhone || '');
        setManualAddress(inv.partyAddress || '');
        setManualArea(inv.partyArea || '');
+       setManualSubArea(inv.partySubArea || '');
     } else {
        setSelectedPartyId(inv.partyId);
     }
@@ -291,7 +295,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
 
   const resetForm = () => {
     setItems([]); setSelectedPartyId(''); setAmountPaid(0); setViewingInvoice(null); setEditingInvoice(null);
-    setManualName(''); setManualPhone(''); setManualArea(''); setManualAddress(''); setManualGstin('');
+    setManualName(''); setManualPhone(''); setManualArea(''); setManualSubArea(''); setManualAddress(''); setManualGstin('');
     setInvoiceNo(`${type === 'SALE' ? 'SL' : 'PR'}-${Date.now().toString().slice(-6)}`);
     setSubType('TAX_INVOICE'); setIsIgst(false);
     // Reset to defaults from profile
@@ -414,7 +418,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                             <div className="text-sm font-medium text-slate-500 space-y-1">
                                 <p>{viewingInvoice.partyAddress || 'No Address Provided'}</p>
                                 <p>Ph: {viewingInvoice.partyPhone}</p>
-                                {viewingInvoice.partyArea && <p>Area: {viewingInvoice.partyArea}</p>}
+                                {viewingInvoice.partyArea && <p>Area: {viewingInvoice.partyArea} {viewingInvoice.partySubArea ? `, ${viewingInvoice.partySubArea}` : ''}</p>}
                             </div>
                         </div>
                         <div className="text-right space-y-1">
@@ -644,11 +648,19 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                       </div>
                       <div className="space-y-2">
                         <label className="text-[9px] font-black uppercase text-slate-400">Locality (Area)</label>
-                        <input type="text" className="w-full border-2 border-white rounded-2xl p-4 text-sm font-bold bg-white outline-none shadow-sm disabled:opacity-50 uppercase" value={!selectedPartyId ? manualArea : (selectedParty?.area || '')} onChange={e => setManualArea(e.target.value)} disabled={!!selectedPartyId} placeholder="Area / Market" />
+                        <input type="text" className="w-full border-2 border-white rounded-2xl p-4 text-sm font-bold bg-white outline-none shadow-sm disabled:opacity-50 uppercase" value={!selectedPartyId ? manualArea : (selectedParty?.area || '')} onChange={e => setManualArea(e.target.value)} disabled={!!selectedPartyId} placeholder="City / Area" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase text-slate-400">Sub-Area / Landmark</label>
+                        <input type="text" className="w-full border-2 border-white rounded-2xl p-4 text-sm font-bold bg-white outline-none shadow-sm disabled:opacity-50 uppercase" value={!selectedPartyId ? manualSubArea : (selectedParty?.subArea || '')} onChange={e => setManualSubArea(e.target.value)} disabled={!!selectedPartyId} placeholder="Specific Market / Street" />
                       </div>
                       <div className="space-y-2">
                         <label className="text-[9px] font-black uppercase text-slate-400">Tax ID (GSTIN)</label>
-                        <input type="text" className="w-full border-2 border-white rounded-2xl p-4 text-sm font-bold bg-white outline-none shadow-sm disabled:opacity-50 uppercase" value={!selectedPartyId ? manualGstin : (selectedParty?.gstin || '')} onChange={e => setManualGstin(e.target.value)} disabled={!!selectedPartyId} placeholder="GSTIN" />
+                        <input type="text" className="w-full border-2 border-white rounded-2xl p-4 text-sm font-bold bg-white outline-none shadow-sm disabled:opacity-50 uppercase" value={!selectedPartyId ? manualGstin : (selectedParty?.gstin || '')} onChange={e => setManualGstin(e.target.value)} disabled={!!selectedPartyId} placeholder="GSTIN (Optional)" />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[9px] font-black uppercase text-slate-400">Full Address</label>
+                        <input type="text" className="w-full border-2 border-white rounded-2xl p-4 text-sm font-bold bg-white outline-none shadow-sm disabled:opacity-50 uppercase" value={!selectedPartyId ? manualAddress : (selectedParty?.address || '')} onChange={e => setManualAddress(e.target.value)} disabled={!!selectedPartyId} placeholder="Full Billing Address" />
                       </div>
                     </div>
                   </div>

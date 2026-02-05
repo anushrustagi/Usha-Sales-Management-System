@@ -3,7 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { AppData, ViewType, WalkInRecord, Transaction, Customer } from '../types';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  AreaChart, Area 
+  AreaChart, Area, ComposedChart, Line 
 } from 'recharts';
 import { 
   IndianRupee, TrendingUp, Users, ShoppingCart, Store, Plus, Minus, ShieldCheck, AlertTriangle, FileText, HandCoins, BarChart3, ChevronRight, Zap, PackagePlus, FilePlus, ShoppingBag, Briefcase, Activity, Truck, Phone, MessageSquare, AlertCircle, ArrowUpRight, CheckCircle2, Wallet as WalletIcon, BellRing, CalendarClock, PiggyBank, ArrowDownRight, Tag
@@ -50,11 +50,18 @@ const Dashboard: React.FC<DashboardProps> = ({ data, setActiveView, updateData }
   }, [data.customers]);
 
   const salesTrendData = useMemo(() => {
-    const last10 = data.invoices.filter(i => i.type === 'SALE').slice(-10).map(i => ({
+    const last10 = data.invoices.filter(i => i.type === 'SALE').slice(-10);
+    
+    if (last10.length === 0) return [];
+
+    const total = last10.reduce((sum, i) => sum + i.grandTotal, 0);
+    const average = Math.round(total / last10.length);
+
+    return last10.map(i => ({
       date: new Date(i.date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }),
-      amount: i.grandTotal
+      amount: i.grandTotal,
+      average: average
     }));
-    return last10;
   }, [data]);
 
   const handleLogWalkIn = () => {
@@ -156,6 +163,10 @@ const Dashboard: React.FC<DashboardProps> = ({ data, setActiveView, updateData }
                </div>
                <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
+                     <div className="w-3 h-1 bg-amber-500/50 rounded-full"></div>
+                     <span className="text-[9px] font-black text-slate-400 uppercase">Avg. Sales</span>
+                  </div>
+                  <div className="flex items-center gap-2">
                      <div className="w-2 h-2 rounded-full bg-blue-600"></div>
                      <span className="text-[9px] font-black text-slate-400 uppercase">Settled Sales</span>
                   </div>
@@ -163,7 +174,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, setActiveView, updateData }
              </div>
             <div className="h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={salesTrendData}>
+                <ComposedChart data={salesTrendData}>
                   <defs>
                     <linearGradient id="colorAmt" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
@@ -176,8 +187,9 @@ const Dashboard: React.FC<DashboardProps> = ({ data, setActiveView, updateData }
                   <Tooltip 
                     contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', fontSize: '12px', fontWeight: 'bold', padding: '16px' }} 
                   />
-                  <Area type="monotone" dataKey="amount" stroke="#2563eb" strokeWidth={5} fillOpacity={1} fill="url(#colorAmt)" />
-                </AreaChart>
+                  <Area type="monotone" dataKey="amount" stroke="#2563eb" strokeWidth={5} fillOpacity={1} fill="url(#colorAmt)" name="Revenue" />
+                  <Line type="monotone" dataKey="average" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={false} activeDot={false} name="Average" />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </div>
