@@ -268,91 +268,103 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
 
   // --- End Live API Implementation ---
 
-  // --- Deep Analysis Implementation ---
+  // --- LOCAL SCAN IMPLEMENTATION (Deterministic, No AI) ---
   const runFullScan = async () => {
-    if (!isOnline) {
-      setError("System Offline. Check internet connection.");
-      return;
-    }
-    const apiKey = data.companyProfile.apiKey || process.env.API_KEY;
-    if (!apiKey) {
-      setError("API Key not configured. Please add your Gemini API Key in Settings.");
-      return;
-    }
-
     setLoading(true);
     setError(null);
     
+    // Simulate computational delay for UX
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
     try {
-      const ai = new GoogleGenAI({ apiKey });
-      const summary = getContextSummary(); // Get fresh data
+      // 1. Logic for Health Score
+      let score = 100;
+      const lowStockCount = data.products.filter(p => p.stock <= p.minStockAlert).length;
+      const totalReceivables = data.customers.reduce((acc, c) => acc + c.outstandingBalance, 0);
       
-      const prompt = `Act as the Chief Operating Officer (COO) AI.
-      Analyze the following business metrics:
-      ${summary}
-      
-      Task:
-      1. Calculate a Business Health Score (0-100).
-      2. Identify critical anomalies (Alerts).
-      3. Find strategic opportunities (Insights).
-      4. Generate 3 specific, actionable tasks for the owner.
-      
-      Output strictly in JSON format matching the schema.`;
+      const currentMonth = new Date().getMonth();
+      const monthlyRevenue = data.invoices
+        .filter(i => i.type === 'SALE' && new Date(i.date).getMonth() === currentMonth)
+        .reduce((acc, i) => acc + i.grandTotal, 0);
+      const monthlyExpense = data.transactions
+        .filter(t => t.type === 'DEBIT' && new Date(t.date).getMonth() === currentMonth)
+        .reduce((acc, t) => acc + t.amount, 0);
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-pro-preview",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          // Use type enum from SDK
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              healthScore: { type: Type.NUMBER },
-              healthSummary: { type: Type.STRING },
-              alerts: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    severity: { type: Type.STRING, enum: ["HIGH", "MEDIUM", "LOW"] },
-                    title: { type: Type.STRING },
-                    message: { type: Type.STRING },
-                    action: { type: Type.STRING }
-                  }
-                }
-              },
-              insights: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    title: { type: Type.STRING },
-                    observation: { type: Type.STRING },
-                    suggestion: { type: Type.STRING }
-                  }
-                }
-              },
-              tasks: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    title: { type: Type.STRING },
-                    priority: { type: Type.STRING, enum: ["HIGH", "MEDIUM", "LOW"] }
-                  }
-                }
-              }
-            }
-          }
-        }
+      // Algorithmic Deductions
+      if (lowStockCount > 0) score -= Math.min(20, lowStockCount * 5); 
+      if (totalReceivables > monthlyRevenue * 0.5 && monthlyRevenue > 0) score -= 15;
+      if (monthlyExpense > monthlyRevenue && monthlyRevenue > 0) score -= 20;
+      
+      score = Math.max(0, Math.min(100, score));
+
+      // 2. Generate Alerts
+      const alerts: any[] = [];
+      if (lowStockCount > 0) {
+        alerts.push({
+          severity: 'HIGH',
+          title: 'Inventory Shortage',
+          message: `${lowStockCount} SKUs are below safety stock levels.`,
+          action: 'Restock Now'
+        });
+      }
+      if (totalReceivables > 0) {
+        alerts.push({
+          severity: totalReceivables > 50000 ? 'HIGH' : 'MEDIUM',
+          title: 'Credit Exposure',
+          message: `Total pending market collection: ₹${totalReceivables.toLocaleString()}.`,
+          action: 'Payment Reminders'
+        });
+      }
+      if (monthlyExpense > monthlyRevenue && monthlyRevenue > 0) {
+         alerts.push({
+          severity: 'MEDIUM',
+          title: 'Cash Flow Warning',
+          message: 'Monthly burn rate exceeds revenue generation.',
+          action: 'Audit Expenses'
+        });
+      }
+
+      // 3. Generate Insights
+      const insights: any[] = [];
+      const itemCounts: Record<string, number> = {};
+      data.invoices.filter(i => i.type === 'SALE').forEach(inv => {
+        inv.items.forEach(item => {
+          itemCounts[item.productName] = (itemCounts[item.productName] || 0) + item.quantity;
+        });
+      });
+      const topProduct = Object.entries(itemCounts).sort((a,b) => b[1] - a[1])[0];
+      
+      if (topProduct) {
+        insights.push({
+          title: 'Best Seller',
+          observation: `"${topProduct[0]}" leads sales volume with ${topProduct[1]} units moving.`,
+          suggestion: 'Prioritize Supply'
+        });
+      }
+
+      insights.push({
+        title: 'Vault Integrity',
+        observation: `${data.invoices.length} Vouchers, ${data.transactions.length} Ledger Entries active.`,
+        suggestion: 'Backup Recommended'
       });
 
-      const result = JSON.parse(response.text || '{}');
-      setAnalysis(result);
+      // 4. Generate Tasks
+      const tasks: any[] = [];
+      if (lowStockCount > 0) tasks.push({ title: 'Generate Purchase Orders', priority: 'HIGH' });
+      if (totalReceivables > 0) tasks.push({ title: 'Follow-up with Debtors', priority: 'MEDIUM' });
+      tasks.push({ title: 'Weekly Ledger Reconciliation', priority: 'LOW' });
+
+      setAnalysis({
+        healthScore: score,
+        healthSummary: `Diagnostic Complete. System operating at ${score}% efficiency based on deterministic rule analysis.`,
+        alerts,
+        insights,
+        tasks
+      });
+
     } catch (e: any) {
-      console.error("Brain Scan Failed", e);
-      setError(`Neural connection failed: ${e.message || "Unknown error"}. Check API Key in Settings.`);
+      console.error("Local Scan Failed", e);
+      setError("Diagnostic Algorithm Failed.");
     } finally {
       setLoading(false);
     }
@@ -404,11 +416,11 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
 
   // Initial Scan on Mount
   useEffect(() => {
-    if (!analysis && isOnline && !loading) {
+    if (!analysis && !loading) {
         const t = setTimeout(runFullScan, 500);
         return () => clearTimeout(t);
     }
-  }, [isOnline]);
+  }, []);
 
   return (
     <div className="space-y-8 pb-12 animate-in fade-in duration-700 min-h-screen">
@@ -424,14 +436,12 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
                     <h1 className="text-4xl font-black tracking-tighter uppercase leading-none bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">Master Brain</h1>
                     <div className="flex items-center gap-2 mt-2">
                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Central Intelligence Unit</p>
-                       {!(data.companyProfile.apiKey || process.env.API_KEY) && (
-                          <span className="px-2 py-0.5 bg-rose-500/20 text-rose-400 text-[8px] font-black uppercase tracking-widest border border-rose-500/50 rounded">API Key Missing</span>
-                       )}
+                       <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[8px] font-black uppercase tracking-widest border border-emerald-500/50 rounded">Local Processing</span>
                     </div>
                  </div>
               </div>
               <p className="max-w-xl text-slate-400 text-xs font-bold leading-relaxed uppercase tracking-wide">
-                 Autonomous neural network analyzing ledger anomalies, stock velocities, and capital efficiency.
+                 Autonomous rule-based engine analyzing ledger anomalies, stock velocities, and capital efficiency.
               </p>
            </div>
 
@@ -446,7 +456,7 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
               )}
               <button 
                 onClick={runFullScan} 
-                disabled={loading || !isOnline}
+                disabled={loading}
                 className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/20 transition-all active:scale-95 disabled:opacity-50"
               >
                  {loading ? <Loader2 className="animate-spin text-indigo-400"/> : <RefreshCcw className="text-indigo-400"/>}
@@ -464,7 +474,7 @@ const Brain: React.FC<BrainProps> = ({ data, updateData }) => {
          <div className="p-6 bg-rose-50 border border-rose-100 rounded-[2rem] flex items-center gap-4 text-rose-600 animate-in fade-in">
             <ShieldAlert size={24} />
             <div>
-               <h4 className="font-black text-sm uppercase tracking-widest">Connection Failure</h4>
+               <h4 className="font-black text-sm uppercase tracking-widest">Diagnostic Failure</h4>
                <p className="text-xs font-bold opacity-80">{error}</p>
             </div>
          </div>

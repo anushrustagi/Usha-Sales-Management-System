@@ -10,13 +10,13 @@ import Invoicing from './components/Invoicing';
 import CRM from './components/CRM';
 import Accounting from './components/Accounting';
 import Expenses from './components/Expenses';
-import Forecasting from './components/Forecasting';
 import Settings from './components/Settings';
 import Payments from './components/Payments';
 import WalkinReports from './components/WalkinReports';
 import Budgeting from './components/Budgeting';
 import Planner from './components/Planner';
 import Brain from './components/Brain';
+import Forecasting from './components/Forecasting';
 import Login from './components/Login';
 import { Search, Command, X, ArrowRight, User, Package, Calculator } from 'lucide-react';
 
@@ -119,8 +119,6 @@ const App: React.FC = () => {
         return <Accounting data={data} initialFilter={globalFilter} />;
       case ViewType.EXPENSES:
         return <Expenses data={data} updateData={updateData} />;
-      case ViewType.FORECASTING:
-        return <Forecasting data={data} />;
       case ViewType.SETTINGS:
         return <Settings data={data} updateData={updateData} />;
       case ViewType.WALKIN_REPORTS:
@@ -131,6 +129,8 @@ const App: React.FC = () => {
         return <Planner data={data} updateData={updateData} />;
       case ViewType.BRAIN:
         return <Brain data={data} updateData={updateData} />;
+      case ViewType.ANALYZER:
+        return <Forecasting data={data} />;
       default:
         return <Dashboard data={data} setActiveView={navigateTo} updateData={updateData} />;
     }

@@ -136,7 +136,7 @@ const Settings: React.FC<SettingsProps> = ({ data, updateData }) => {
                     {showApiKey ? <EyeOff size={18}/> : <Eye size={18}/>}
                  </button>
               </div>
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Required for Brain, Forecasting & Smart features. Data stays local.</p>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Required for Brain & Smart features. Data stays local.</p>
            </div>
         </div>
       </div>

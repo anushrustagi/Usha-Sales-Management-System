@@ -19,7 +19,8 @@ import {
   LogOut,
   PiggyBank,
   CalendarDays,
-  Bot
+  Bot,
+  LineChart
 } from 'lucide-react';
 import { ViewType, AppData } from '../types';
 
@@ -37,6 +38,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, se
   const menuItems = [
     { id: ViewType.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
     { id: ViewType.BRAIN, label: 'Master Brain', icon: Bot },
+    { id: ViewType.ANALYZER, label: 'Growth Analyzer', icon: LineChart },
     { id: ViewType.PLANNER, label: 'Task Planner', icon: CalendarDays },
     { id: ViewType.SALES, label: 'Sales', icon: ShoppingCart },
     { id: ViewType.PURCHASES, label: 'Purchases', icon: Store },
@@ -47,7 +49,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, isOpen, se
     { id: ViewType.EXPENSES, label: 'Expenses', icon: Wallet },
     { id: ViewType.PAYMENTS, label: 'Payments (Ledger)', icon: HandCoins },
     { id: ViewType.ACCOUNTING, label: 'Accounts (P&L)', icon: BookOpen },
-    { id: ViewType.FORECASTING, label: 'AI Forecasting', icon: BrainCircuit },
   ];
 
   return (
