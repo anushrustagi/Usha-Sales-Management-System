@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { AppData, Product } from '../types';
+
+import React, { useState } from 'react';
+import { AppData } from '../types';
 import { 
-  LineChart as LineChartIcon, TrendingUp, TrendingDown, 
+  LineChart as LineChartIcon, 
   AlertTriangle, Package, DollarSign, Activity, 
-  ArrowUpRight, ArrowDownRight, Search, Calendar,
+  ArrowUpRight, ArrowDownRight, Search,
   BarChart3, PieChart as PieIcon, Layers, Zap, 
   RefreshCcw, Target, Award, Skull, Loader2
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie, Legend
+  ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
 
 interface ForecastingProps {
@@ -38,159 +39,170 @@ interface AnalysisResult {
   insights: string[];
   projectedRevenue: number;
   growthRate: number;
+  abcAnalysis: { a: number, b: number, c: number };
 }
 
 const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
   const [loading, setLoading] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
 
-  const runAnalysis = () => {
+  const runAnalysis = async () => {
     setLoading(true);
     
-    // Simulate processing time for better UX
+    // Simulate complex calculation time
     setTimeout(() => {
-      const now = new Date();
-      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+        // --- 1. Data Aggregation (Local) ---
+        const now = new Date();
+        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
-      // --- 1. Financial Trend Analysis (Last 6 Months) ---
-      const monthlyStats: Record<string, { revenue: number; expenses: number; profit: number; order: number }> = {};
-      
-      // Initialize months
-      for (let i = 0; i < 6; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
-        monthlyStats[key] = { revenue: 0, expenses: 0, profit: 0, order: i };
-      }
-
-      // Process Invoices (Revenue)
-      data.invoices.filter(i => i.type === 'SALE' && new Date(i.date) >= sixMonthsAgo).forEach(inv => {
-        const d = new Date(inv.date);
-        const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
-        if (monthlyStats[key]) monthlyStats[key].revenue += inv.grandTotal;
-      });
-
-      // Process Expenses (Purchases + Transactions)
-      data.invoices.filter(i => i.type === 'PURCHASE' && new Date(i.date) >= sixMonthsAgo).forEach(inv => {
-        const d = new Date(inv.date);
-        const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
-        if (monthlyStats[key]) monthlyStats[key].expenses += inv.grandTotal;
-      });
-      data.transactions.filter(t => t.type === 'DEBIT' && t.category !== 'Purchase' && new Date(t.date) >= sixMonthsAgo).forEach(t => {
-        const d = new Date(t.date);
-        const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
-        if (monthlyStats[key]) monthlyStats[key].expenses += t.amount;
-      });
-
-      const financialTrend = Object.entries(monthlyStats)
-        .map(([month, stats]) => ({
-          month,
-          revenue: stats.revenue,
-          expenses: stats.expenses,
-          profit: stats.revenue - stats.expenses,
-          order: stats.order
-        }))
-        .sort((a, b) => b.order - a.order); // Reverse to get chronological order (oldest first)
-
-      // Calculate Growth Rate (Last month vs Avg of prev 3)
-      const lastMonth = financialTrend[financialTrend.length - 1];
-      const prevRevenue = financialTrend.slice(Math.max(0, financialTrend.length - 4), financialTrend.length - 1).reduce((acc, curr) => acc + curr.revenue, 0) / 3 || 1;
-      const growthRate = ((lastMonth.revenue - prevRevenue) / prevRevenue) * 100;
-      const projectedRevenue = lastMonth.revenue * (1 + (growthRate / 100));
-
-      // --- 2. Product Matrix & Inventory Health ---
-      // Sales in last 90 days for velocity
-      const ninetyDaysAgo = new Date();
-      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-
-      const productSalesMap: Record<string, { qty: number, revenue: number }> = {};
-      data.invoices.filter(i => i.type === 'SALE' && new Date(i.date) >= ninetyDaysAgo).forEach(inv => {
-        inv.items.forEach(item => {
-          if (!productSalesMap[item.productId]) productSalesMap[item.productId] = { qty: 0, revenue: 0 };
-          productSalesMap[item.productId].qty += item.quantity;
-          productSalesMap[item.productId].revenue += item.amount;
-        });
-      });
-
-      const productMetrics: ProductMetric[] = data.products.map(p => {
-        const sales = productSalesMap[p.id] || { qty: 0, revenue: 0 };
-        const velocity = sales.qty / 3; // Approx monthly units
-        const margin = p.salePrice > 0 ? ((p.salePrice - p.purchasePrice) / p.salePrice) * 100 : 0;
+        const monthlyStats: Record<string, { revenue: number; expenses: number; profit: number; order: number, rawDate: number }> = {};
         
-        let status: ProductMetric['status'] = 'DOG';
-        if (margin > 20 && velocity > 10) status = 'STAR';
-        else if (margin <= 20 && velocity > 10) status = 'CASH_COW';
-        else if (margin > 20 && velocity <= 10) status = 'PROBLEM'; // High margin but low sales
-        else status = 'DOG'; // Low margin, low sales
-
-        return {
-          id: p.id,
-          name: p.name,
-          category: p.category,
-          margin,
-          totalRevenue: sales.revenue,
-          unitsSold: sales.qty,
-          stock: p.stock,
-          velocity,
-          status
-        };
-      });
-
-      // Segments
-      const topPerformers = [...productMetrics].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 5);
-      const slowMovers = productMetrics.filter(p => p.velocity < 1 && p.stock > 0).slice(0, 5);
-      const deadStock = productMetrics.filter(p => p.unitsSold === 0 && p.stock > 0 && new Date(data.products.find(prod => prod.id === p.id)?.lastRestockedDate || '') < ninetyDaysAgo);
-
-      // Category Analysis
-      const categoryStats: Record<string, number> = {};
-      productMetrics.forEach(p => {
-        categoryStats[p.category] = (categoryStats[p.category] || 0) + p.totalRevenue;
-      });
-      const categoryPerformance = Object.entries(categoryStats)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5);
-
-      // --- 3. Walk-In Demand Analysis ---
-      const demandCounts: Record<string, number> = {};
-      data.walkInRecords.forEach(r => {
-        if (r.productName) {
-          const name = r.productName.toUpperCase();
-          demandCounts[name] = (demandCounts[name] || 0) + r.count;
+        for (let i = 0; i < 6; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+            monthlyStats[key] = { revenue: 0, expenses: 0, profit: 0, order: i, rawDate: d.getTime() };
         }
-      });
-      const walkInDemand = Object.entries(demandCounts)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
 
-      // --- 4. Insights Generation ---
-      const insights = [];
-      if (growthRate > 10) insights.push("Business is growing! Revenue trend is positive (+10%) over 3-month avg.");
-      else if (growthRate < -10) insights.push("Revenue Alert: Sales are trending down compared to 3-month average.");
-      else insights.push("Business is stable with steady revenue flow.");
+        // Revenue & Expense Calculation
+        data.invoices.filter(i => i.type === 'SALE' && new Date(i.date) >= sixMonthsAgo).forEach(inv => {
+            const d = new Date(inv.date);
+            const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+            if (monthlyStats[key]) monthlyStats[key].revenue += inv.grandTotal;
+        });
 
-      if (deadStock.length > 5) insights.push(`Capital Lock Alert: ${deadStock.length} items have not moved in 90 days.`);
-      
-      const starCount = productMetrics.filter(p => p.status === 'STAR').length;
-      insights.push(`${starCount} 'Star' products identified (High Margin & High Velocity). Focus marketing here.`);
+        data.invoices.filter(i => i.type === 'PURCHASE' && new Date(i.date) >= sixMonthsAgo).forEach(inv => {
+            const d = new Date(inv.date);
+            const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+            if (monthlyStats[key]) monthlyStats[key].expenses += inv.grandTotal;
+        });
+        
+        data.transactions.filter(t => t.type === 'DEBIT' && t.category !== 'Purchase' && new Date(t.date) >= sixMonthsAgo).forEach(t => {
+            const d = new Date(t.date);
+            const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+            if (monthlyStats[key]) monthlyStats[key].expenses += t.amount;
+        });
 
-      if (walkInDemand.length > 0) {
-        insights.push(`High Walk-in Demand for "${walkInDemand[0].name}". Ensure stock availability.`);
-      }
+        const financialTrend = Object.entries(monthlyStats)
+            .map(([month, stats]) => ({
+                month,
+                revenue: stats.revenue,
+                expenses: stats.expenses,
+                profit: stats.revenue - stats.expenses,
+                order: stats.order,
+                rawDate: stats.rawDate
+            }))
+            .sort((a, b) => a.rawDate - b.rawDate); // Sort oldest to newest for regression
 
-      setAnalysis({
-        financialTrend,
-        topPerformers,
-        slowMovers,
-        deadStock,
-        categoryPerformance,
-        walkInDemand,
-        insights,
-        projectedRevenue,
-        growthRate
-      });
-      setLoading(false);
-    }, 1500);
+        // --- 2. Advanced Forecasting: Linear Regression (Least Squares) ---
+        // x = time index (0, 1, 2, 3, 4, 5)
+        // y = revenue
+        const n = financialTrend.length;
+        let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+        
+        financialTrend.forEach((point, index) => {
+            sumX += index;
+            sumY += point.revenue;
+            sumXY += index * point.revenue;
+            sumXX += index * index;
+        });
+
+        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+        
+        // Predict Month 7 (index 6)
+        const nextMonthIndex = 6;
+        let projectedRevenue = slope * nextMonthIndex + intercept;
+        if (projectedRevenue < 0) projectedRevenue = 0;
+
+        // Current Growth Rate based on slope
+        const avgRevenue = sumY / n;
+        const growthRate = avgRevenue > 0 ? (slope / avgRevenue) * 100 : 0;
+
+        // --- 3. Product Metrics & ABC Analysis ---
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+        const productSalesMap: Record<string, { qty: number, revenue: number }> = {};
+        data.invoices.filter(i => i.type === 'SALE' && new Date(i.date) >= ninetyDaysAgo).forEach(inv => {
+            inv.items.forEach(item => {
+                if (!productSalesMap[item.productId]) productSalesMap[item.productId] = { qty: 0, revenue: 0 };
+                productSalesMap[item.productId].qty += item.quantity;
+                productSalesMap[item.productId].revenue += item.amount;
+            });
+        });
+
+        const productMetrics: ProductMetric[] = data.products.map(p => {
+            const sales = productSalesMap[p.id] || { qty: 0, revenue: 0 };
+            const velocity = sales.qty / 3;
+            const margin = p.salePrice > 0 ? ((p.salePrice - p.purchasePrice) / p.salePrice) * 100 : 0;
+            
+            let status: ProductMetric['status'] = 'DOG';
+            if (margin > 20 && velocity > 10) status = 'STAR';
+            else if (margin <= 20 && velocity > 10) status = 'CASH_COW';
+            else if (margin > 20 && velocity <= 10) status = 'PROBLEM';
+            else status = 'DOG';
+
+            return {
+                id: p.id, name: p.name, category: p.category, margin,
+                totalRevenue: sales.revenue, unitsSold: sales.qty, stock: p.stock, velocity, status
+            };
+        });
+
+        // ABC Calculation
+        const sortedByRev = [...productMetrics].sort((a,b) => b.totalRevenue - a.totalRevenue);
+        const totalRev = sortedByRev.reduce((sum, p) => sum + p.totalRevenue, 0);
+        let cumRev = 0;
+        let countA = 0, countB = 0, countC = 0;
+        
+        sortedByRev.forEach(p => {
+            cumRev += p.totalRevenue;
+            const pct = (cumRev / totalRev) * 100;
+            if (pct <= 80) countA++;
+            else if (pct <= 95) countB++;
+            else countC++;
+        });
+
+        const topPerformers = [...productMetrics].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 5);
+        const slowMovers = productMetrics.filter(p => p.velocity < 1 && p.stock > 0).slice(0, 5);
+        const deadStock = productMetrics.filter(p => p.unitsSold === 0 && p.stock > 0 && new Date(data.products.find(prod => prod.id === p.id)?.lastRestockedDate || '') < ninetyDaysAgo);
+
+        const categoryStats: Record<string, number> = {};
+        productMetrics.forEach(p => { categoryStats[p.category] = (categoryStats[p.category] || 0) + p.totalRevenue; });
+        const categoryPerformance = Object.entries(categoryStats).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
+
+        const demandCounts: Record<string, number> = {};
+        data.walkInRecords.forEach(r => { if (r.productName) { const name = r.productName.toUpperCase(); demandCounts[name] = (demandCounts[name] || 0) + r.count; }});
+        const walkInDemand = Object.entries(demandCounts).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+
+        // --- 4. Insights Generation ---
+        const finalInsights = [
+            growthRate > 5 
+                ? `Positive Momentum: Revenue is trending upwards by approx ${growthRate.toFixed(1)}% monthly.` 
+                : growthRate < -5 
+                ? `Negative Trend: Monthly revenue is declining by ${Math.abs(growthRate).toFixed(1)}%. Immediate action required.` 
+                : "Stabilization: Revenue is relatively flat. Consider new marketing initiatives.",
+            
+            `Pareto Efficiency: ${countA} products (Class A) define 80% of your revenue. Focus stock availability here.`,
+            
+            deadStock.length > 5 
+                ? `Liquidity Trap: ${deadStock.length} items are dead stock. Capital is tied up.` 
+                : "Inventory Health: Dead stock levels are manageable."
+        ];
+
+        setAnalysis({
+            financialTrend,
+            topPerformers,
+            slowMovers,
+            deadStock,
+            categoryPerformance,
+            walkInDemand,
+            insights: finalInsights,
+            projectedRevenue,
+            growthRate,
+            abcAnalysis: { a: countA, b: countB, c: countC }
+        });
+        setLoading(false);
+    }, 1000);
   };
 
   const formatCurrency = (val: number) => `₹${val.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -206,11 +218,11 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
               <div className="p-3 bg-emerald-500 rounded-2xl shadow-lg"><LineChartIcon className="w-8 h-8 text-white" /></div>
               <div>
                  <h2 className="text-3xl font-black tracking-tight uppercase leading-none">Growth Analyzer</h2>
-                 <p className="text-[10px] font-black text-emerald-300 uppercase tracking-[0.3em] mt-2">Local Algorithmic Engine</p>
+                 <p className="text-[10px] font-black text-emerald-300 uppercase tracking-[0.3em] mt-2">Statistical Intelligence Engine</p>
               </div>
             </div>
             <p className="max-w-xl text-slate-400 text-xs font-bold leading-relaxed uppercase tracking-wide">
-               Processing local ledger, inventory velocity, and walk-in patterns to generate deterministic business insights.
+               Merges Linear Regression & Pareto Analysis for superior predictive accuracy.
             </p>
           </div>
           <button 
@@ -219,7 +231,7 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
             className="px-10 py-5 bg-white text-slate-900 font-black rounded-3xl shadow-xl hover:bg-emerald-50 active:scale-95 transition-all flex items-center gap-3 uppercase tracking-widest text-xs"
           >
             {loading ? <Loader2 className="animate-spin" size={20} /> : <RefreshCcw size={20} />}
-            {loading ? 'Running Algorithms...' : 'Run Deep Scan'}
+            {loading ? 'Computing Regressions...' : 'Run Deep Scan'}
           </button>
         </div>
         <Activity size={300} className="absolute -bottom-20 -right-20 text-white opacity-5 pointer-events-none" />
@@ -253,7 +265,7 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
                 <div className="flex items-end gap-3">
                    <span className="text-3xl font-black text-slate-900 tracking-tighter">{formatCurrency(analysis.projectedRevenue)}</span>
                    <span className={`text-xs font-black px-2 py-1 rounded mb-1 ${analysis.growthRate >= 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                      {analysis.growthRate >= 0 ? '+' : ''}{analysis.growthRate.toFixed(1)}%
+                      {analysis.growthRate >= 0 ? '+' : ''}{analysis.growthRate.toFixed(1)}% Slope
                    </span>
                 </div>
              </div>
@@ -261,7 +273,7 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between">
                 <div className="flex items-center gap-3 mb-4 text-slate-400">
                    <Zap size={20} />
-                   <h3 className="text-[10px] font-black uppercase tracking-widest">Efficiency Insight</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest">Strategic Insight</h3>
                 </div>
                 <p className="text-xs font-bold text-slate-600 leading-relaxed uppercase">
                    {analysis.insights[0]}
@@ -271,7 +283,7 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
              <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-lg flex flex-col justify-between border border-white/5">
                 <div className="flex items-center gap-3 mb-4 text-emerald-400">
                    <Award size={20} />
-                   <h3 className="text-[10px] font-black uppercase tracking-widest">Star Performer</h3>
+                   <h3 className="text-[10px] font-black uppercase tracking-widest">Class 'A' Performer</h3>
                 </div>
                 <div>
                    <p className="text-xl font-black truncate">{analysis.topPerformers[0]?.name || 'N/A'}</p>
@@ -326,11 +338,26 @@ const Forecasting: React.FC<ForecastingProps> = ({ data }) => {
                    <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><Layers size={24}/></div>
                    <div>
                       <h3 className="font-black text-slate-900 text-lg uppercase tracking-tight">Product Matrix</h3>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Sales Velocity vs Margin</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">ABC Classification</p>
                    </div>
                 </div>
                 
                 <div className="flex-1 space-y-6">
+                   <div className="grid grid-cols-3 gap-4 mb-6">
+                        <div className="p-4 bg-emerald-50 rounded-2xl text-center border border-emerald-100">
+                            <p className="text-2xl font-black text-emerald-600">{analysis.abcAnalysis.a}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Class A (Top)</p>
+                        </div>
+                        <div className="p-4 bg-blue-50 rounded-2xl text-center border border-blue-100">
+                            <p className="text-2xl font-black text-blue-600">{analysis.abcAnalysis.b}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Class B (Mid)</p>
+                        </div>
+                        <div className="p-4 bg-slate-50 rounded-2xl text-center border border-slate-200">
+                            <p className="text-2xl font-black text-slate-600">{analysis.abcAnalysis.c}</p>
+                            <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Class C (Low)</p>
+                        </div>
+                   </div>
+
                    <div>
                       <div className="flex justify-between items-center mb-3">
                          <h4 className="text-xs font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2"><Award size={14}/> Top Profit Drivers</h4>
