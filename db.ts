@@ -52,6 +52,7 @@ const initialData: AppData = {
   productCategories: defaultCategories,
   budgetGoals: [],
   plannedTasks: [],
+  dailyNotes: [],
   projects: [],
   attendance: []
 };
@@ -78,6 +79,7 @@ const sanitizeData = (parsed: any): AppData => {
     if (!parsed.opportunities) parsed.opportunities = [];
     if (!parsed.budgetGoals) parsed.budgetGoals = [];
     if (!parsed.plannedTasks) parsed.plannedTasks = [];
+    if (!parsed.dailyNotes) parsed.dailyNotes = [];
     if (!parsed.projects) parsed.projects = [];
     if (!parsed.attendance) parsed.attendance = [];
     

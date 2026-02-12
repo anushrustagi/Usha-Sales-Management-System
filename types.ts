@@ -221,6 +221,11 @@ export interface PlannedTask {
   projectId?: string; // Optional: Link to project
 }
 
+export interface DailyNote {
+  date: string; // YYYY-MM-DD
+  content: string;
+}
+
 export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
 
 export interface Project {
@@ -257,6 +262,7 @@ export interface AppData {
   productCategories: string[];
   budgetGoals: BudgetGoal[];
   plannedTasks: PlannedTask[];
+  dailyNotes: DailyNote[];
   projects: Project[];
   attendance: AttendanceRecord[];
 }

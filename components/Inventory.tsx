@@ -184,12 +184,18 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
           <div className="bg-white rounded-[3rem] w-full max-w-xl p-12 space-y-10 shadow-2xl animate-in zoom-in duration-300 border border-white/10">
              <div className="flex justify-between items-center border-b border-slate-100 pb-6"><h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">{editingProduct ? 'Modify SKU' : 'Register New SKU'}</h3><button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><X size={24}/></button></div>
              <div className="grid grid-cols-1 gap-8">
-                <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">SKU Designation</label><input autoFocus type="text" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold bg-slate-50 outline-none focus:border-blue-500 transition-all uppercase shadow-inner" placeholder="Product Name" value={editingProduct?.name || ''} onChange={e => setEditingProduct(prev => prev ? {...prev, name: e.target.value} : {...data.products[0], name: e.target.value, stock: 0, minStockAlert: 5})} /></div>
+                <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">SKU Designation</label><input autoFocus type="text" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold bg-slate-50 outline-none focus:border-blue-500 transition-all uppercase shadow-inner" placeholder="Product Name" value={editingProduct?.name || ''} onChange={e => setEditingProduct(prev => prev ? {...prev, name: e.target.value} : {...data.products[0], name: e.target.value, stock: 0, minStockAlert: 5, hsn: ''})} /></div>
                 
                 {/* Stock Locator Field */}
-                <div className="space-y-3">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2"><MapPin size={12}/> Stock Locator / Shelf ID</label>
-                   <input type="text" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold bg-slate-50 outline-none focus:border-blue-500 shadow-inner uppercase" placeholder="e.g. Aisle 4, Rack B" value={editingProduct?.location || ''} onChange={e => setEditingProduct(prev => prev ? {...prev, location: e.target.value} : null)} />
+                <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-3">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2"><MapPin size={12}/> Stock Locator</label>
+                       <input type="text" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold bg-slate-50 outline-none focus:border-blue-500 shadow-inner uppercase" placeholder="Shelf A1" value={editingProduct?.location || ''} onChange={e => setEditingProduct(prev => prev ? {...prev, location: e.target.value} : null)} />
+                    </div>
+                    <div className="space-y-3">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2"><Hash size={12}/> HSN Code</label>
+                       <input type="text" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold bg-slate-50 outline-none focus:border-blue-500 shadow-inner" placeholder="HSN" value={editingProduct?.hsn || ''} onChange={e => setEditingProduct(prev => prev ? {...prev, hsn: e.target.value} : null)} />
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-8">
