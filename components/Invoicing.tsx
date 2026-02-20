@@ -11,7 +11,7 @@ import {
   UserCheck, Layers, Building, MapPinned, Bookmark, Edit2, UserRoundPlus,
   Eraser, Sparkles, ZapIcon, FileSpreadsheet, ArrowRight, Activity, CalendarDays,
   Download, Map as MapIcon, ShieldAlert, ChevronDown, Loader2, Mail, Globe, 
-  Truck as TruckIcon, FileSignature, BookOpenCheck
+  Truck as TruckIcon, FileSignature, BookOpenCheck, Copy
 } from 'lucide-react';
 
 interface InvoicingProps {
@@ -64,6 +64,12 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
   const [terms, setTerms] = useState('Goods once sold will not be taken back.\nInterest @18% p.a. if not paid by due date.\nSubject to Mumbai Jurisdiction.');
   const [extraFields, setExtraFields] = useState({ ewayBill: '', vehicleNo: '', poNo: '', customerCare: data.companyProfile.phone });
 
+  // Shipping Details State
+  const [enableShipping, setEnableShipping] = useState(false);
+  const [shipName, setShipName] = useState('');
+  const [shipAddress, setShipAddress] = useState('');
+  const [shipGstin, setShipGstin] = useState('');
+
   // Modals
   const [showQuickProductModal, setShowQuickProductModal] = useState(false);
   const [showQuickPartyModal, setShowQuickPartyModal] = useState(false);
@@ -103,7 +109,8 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
         items, subTotal: totals.subTotal, totalGst: totals.totalGst, grandTotal: totals.grandTotal,
         amountPaid, type, paymentMode,
         subType, isIgst, roundOff: totals.roundOff,
-        bankDetails, terms, extraFields
+        bankDetails, terms, extraFields,
+        shippingDetails: enableShipping ? { name: shipName, address: shipAddress, gstin: shipGstin } : undefined
     });
     setTimeout(() => window.print(), 100);
   };
@@ -190,7 +197,8 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
       subTotal: totals.subTotal, totalGst: totals.totalGst, grandTotal: totals.grandTotal,
       amountPaid, type, subType, paymentMode,
       isIgst, roundOff: totals.roundOff,
-      bankDetails, terms, extraFields
+      bankDetails, terms, extraFields,
+      shippingDetails: enableShipping ? { name: shipName, address: shipAddress, gstin: shipGstin } : undefined
     };
 
     items.forEach(it => {
@@ -245,6 +253,17 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
     if(inv.terms) setTerms(inv.terms);
     if(inv.extraFields) setExtraFields(inv.extraFields);
     
+    // Shipping fields
+    if (inv.shippingDetails) {
+        setEnableShipping(true);
+        setShipName(inv.shippingDetails.name);
+        setShipAddress(inv.shippingDetails.address);
+        setShipGstin(inv.shippingDetails.gstin || '');
+    } else {
+        setEnableShipping(false);
+        setShipName(''); setShipAddress(''); setShipGstin('');
+    }
+    
     if (inv.partyId === 'WALKIN') {
        setSelectedPartyId('');
        setManualName(inv.partyName);
@@ -298,6 +317,8 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
     setManualName(''); setManualPhone(''); setManualArea(''); setManualSubArea(''); setManualAddress(''); setManualGstin('');
     setInvoiceNo(`${type === 'SALE' ? 'SL' : 'PR'}-${Date.now().toString().slice(-6)}`);
     setSubType('TAX_INVOICE'); setIsIgst(false);
+    // Shipping reset
+    setEnableShipping(false); setShipName(''); setShipAddress(''); setShipGstin('');
     // Reset to defaults from profile
     setBankDetails(data.companyProfile.bankDetails || { bankName: '', accNo: '', ifsc: '', branch: '' });
     setExtraFields({ ewayBill: '', vehicleNo: '', poNo: '', customerCare: data.companyProfile.phone });
@@ -348,6 +369,12 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
         const updatedProfile = { ...data.companyProfile, bankDetails };
         updateData({ companyProfile: updatedProfile });
     }
+  };
+
+  const copyBillingToShipping = () => {
+      setShipName(!selectedPartyId ? manualName : (selectedParty?.name || ''));
+      setShipAddress(!selectedPartyId ? manualAddress : (selectedParty?.address || ''));
+      setShipGstin(!selectedPartyId ? manualGstin : (selectedParty?.gstin || ''));
   };
 
   const themeClasses = {
@@ -410,17 +437,31 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                         <div className="h-1.5 flex-1 bg-slate-200"></div>
                     </div>
 
-                    {/* Info Section */}
-                    <div className="flex justify-between items-start mb-8">
-                        <div className="w-1/2">
-                            <p className="text-slate-500 text-sm font-bold mb-1">Invoice to :</p>
-                            <h3 className="text-xl font-black text-slate-900 mb-2 uppercase">{viewingInvoice.partyName}</h3>
-                            <div className="text-sm font-medium text-slate-500 space-y-1">
-                                <p>{viewingInvoice.partyAddress || 'No Address Provided'}</p>
+                    {/* Info Section - Split for Shipping */}
+                    <div className="flex justify-between items-start mb-8 gap-8">
+                        {/* Billing Details */}
+                        <div className="flex-1">
+                            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Details of Receiver (Billed To)</p>
+                            <h3 className="text-base font-black text-slate-900 mb-1 uppercase">{viewingInvoice.partyName}</h3>
+                            <div className="text-xs font-medium text-slate-500 space-y-0.5">
+                                <p className="leading-tight">{viewingInvoice.partyAddress || 'No Address Provided'}</p>
                                 <p>Ph: {viewingInvoice.partyPhone}</p>
                                 {viewingInvoice.partyArea && <p>Area: {viewingInvoice.partyArea} {viewingInvoice.partySubArea ? `, ${viewingInvoice.partySubArea}` : ''}</p>}
                             </div>
                         </div>
+
+                        {/* Shipping Details */}
+                        {viewingInvoice.shippingDetails && (
+                            <div className="flex-1 border-l border-slate-200 pl-8">
+                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">Details of Consignee (Shipped To)</p>
+                                <h3 className="text-base font-black text-slate-900 mb-1 uppercase">{viewingInvoice.shippingDetails.name}</h3>
+                                <div className="text-xs font-medium text-slate-500 space-y-0.5">
+                                    <p className="leading-tight">{viewingInvoice.shippingDetails.address}</p>
+                                    {viewingInvoice.shippingDetails.gstin && <p>GSTIN: {viewingInvoice.shippingDetails.gstin}</p>}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="text-right space-y-1">
                             <div className="mb-2">
                                 <span className="text-slate-900 font-bold text-lg">Invoice no : </span>
@@ -664,6 +705,42 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                       </div>
                     </div>
                   </div>
+
+                  {/* Shipping Address Toggle */}
+                  <div className={`p-8 rounded-[2.5rem] border transition-all shadow-sm space-y-6 ${enableShipping ? 'bg-blue-50/50 border-blue-100' : 'bg-slate-50 border-slate-100 opacity-80'}`}>
+                     <div className="flex justify-between items-center">
+                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-3">
+                           <TruckIcon size={16} className={enableShipping ? "text-blue-600" : "text-slate-400"} />
+                           Shipping Details
+                        </h4>
+                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setEnableShipping(!enableShipping)}>
+                            <div className={`w-10 h-5 rounded-full relative transition-colors ${enableShipping ? 'bg-blue-500' : 'bg-slate-300'}`}>
+                                <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform ${enableShipping ? 'translate-x-5' : ''}`}></div>
+                            </div>
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Ship to different address?</span>
+                        </div>
+                     </div>
+                     
+                     {enableShipping && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in slide-in-from-top-2 fade-in">
+                           <div className="md:col-span-2 flex justify-end">
+                                <button onClick={copyBillingToShipping} className="text-[9px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-1 hover:underline"><Copy size={12}/> Copy from Billing</button>
+                           </div>
+                           <div className="space-y-2">
+                              <label className="text-[9px] font-black uppercase text-slate-400">Consignee Name</label>
+                              <input type="text" className="w-full border-2 border-white rounded-2xl p-4 text-sm font-bold bg-white outline-none shadow-sm uppercase" value={shipName} onChange={e => setShipName(e.target.value)} placeholder="Receiving Party" />
+                           </div>
+                           <div className="space-y-2">
+                              <label className="text-[9px] font-black uppercase text-slate-400">GSTIN (If different)</label>
+                              <input type="text" className="w-full border-2 border-white rounded-2xl p-4 text-sm font-bold bg-white outline-none shadow-sm uppercase" value={shipGstin} onChange={e => setShipGstin(e.target.value)} placeholder="Consignee GSTIN" />
+                           </div>
+                           <div className="space-y-2 md:col-span-2">
+                              <label className="text-[9px] font-black uppercase text-slate-400">Shipping Address</label>
+                              <textarea className="w-full border-2 border-white rounded-2xl p-4 text-sm font-bold bg-white outline-none shadow-sm uppercase resize-none" rows={2} value={shipAddress} onChange={e => setShipAddress(e.target.value)} placeholder="Delivery Location" />
+                           </div>
+                        </div>
+                     )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 border-l pl-10 border-slate-50">
@@ -805,6 +882,12 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                     <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Date</p><p className="text-sm font-bold text-slate-600">{new Date(detailInvoice.date).toLocaleDateString()}</p></div>
                     <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Type</p><p className="text-sm font-bold text-slate-600 uppercase">{detailInvoice.subType?.replace('_', ' ')}</p></div>
                     <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Status</p><p className={`text-sm font-bold uppercase ${detailInvoice.grandTotal === detailInvoice.amountPaid ? 'text-emerald-600' : 'text-rose-600'}`}>{detailInvoice.grandTotal === detailInvoice.amountPaid ? 'Fully Paid' : 'Partial/Due'}</p></div>
+                    {detailInvoice.shippingDetails && (
+                        <div className="col-span-2 pt-2 border-t border-slate-200">
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Shipped To</p>
+                            <p className="text-xs font-bold text-slate-700 uppercase">{detailInvoice.shippingDetails.name}, {detailInvoice.shippingDetails.address}</p>
+                        </div>
+                    )}
                  </div>
                  
                  <table className="w-full text-left">

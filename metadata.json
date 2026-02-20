@@ -1,5 +1,7 @@
 {
-  "name": "TradeMind",
-  "description": "A disciplined trading journal focused on risk management and psychology with automated performance insights.",
-  "requestFramePermissions": []
+  "name": "USHA Sales Corp - Business Manager",
+  "description": "A high-value, GST-ready offline business management software for sales, inventory, accounting, and forecasting.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
