@@ -1,5 +1,5 @@
 {
-  "name": "usha-sales-corp---business-manager",
+  "name": "trademind",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,12 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.3",
-    "react-dom": "^19.2.3",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "recharts": "^3.7.0",
     "lucide-react": "^0.563.0",
-    "@google/genai": "^1.38.0",
-    "xlsx": "0.18.5"
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

@@ -1,268 +1,92 @@
 
-export enum ViewType {
-  DASHBOARD = 'DASHBOARD',
-  SALES = 'SALES',
-  PURCHASES = 'PURCHASES',
-  INVENTORY = 'INVENTORY',
-  CRM = 'CRM',
-  PAYMENTS = 'PAYMENTS',
-  ACCOUNTING = 'ACCOUNTING',
-  EXPENSES = 'EXPENSES',
-  SETTINGS = 'SETTINGS',
-  WALKIN_REPORTS = 'WALKIN_REPORTS',
-  BUDGETING = 'BUDGETING',
-  PLANNER = 'PLANNER',
-  BRAIN = 'BRAIN',
-  ANALYZER = 'ANALYZER'
+export enum TradeType {
+  LONG = 'LONG',
+  SHORT = 'SHORT'
 }
 
-export interface AuthState {
-  pin?: string;
-  hint?: string;
-  isEnabled: boolean;
+export enum Outcome {
+  WIN = 'WIN',
+  LOSS = 'LOSS',
+  BREAK_EVEN = 'BREAK_EVEN',
+  OPEN = 'OPEN'
 }
 
-export interface CompanyProfile {
-  name: string;
-  address: string;
-  phone: string;
-  gstin: string;
-  email: string;
-  currency: string;
-  logo?: string;
-  apiKey?: string; // New: AI API Key storage
-  tagline?: string; // New: Invoice Header Tagline
-  bankDetails?: {   // New: Default Bank Details
-    bankName: string;
-    accNo: string;
-    ifsc: string;
-    branch: string;
-  };
+export enum Emotion {
+  CONFIDENT = 'Confident',
+  ANXIOUS = 'Anxious',
+  FOMO = 'FOMO',
+  DISCIPLINED = 'Disciplined',
+  REVENGE = 'Revenge',
+  BORED = 'Bored',
+  NEUTRAL = 'Neutral',
+  HESITANT = 'Hesitant',
+  GREEDY = 'Greedy',
+  HOPEFUL = 'Hopeful'
 }
 
-export interface Product {
+export interface Trade {
   id: string;
-  name: string;
-  hsn: string;
-  gstRate: number;
-  purchasePrice: number;
-  salePrice: number;
-  stock: number;
-  openingStock: number;
-  minStockAlert: number;
-  category: string;
-  subCategory: string;
-  lastRestockedDate: string; // Tracking for Ageing Analysis
-  location?: string; // New: Physical location tracker (Stock Locator)
-}
-
-export interface Customer {
-  id: string;
-  name: string;
-  contactPerson?: string;
-  phone: string;
-  address: string;
-  gstin?: string;
-  area?: string;
-  subArea?: string;
-  email?: string;
-  remarks?: string;
-  outstandingBalance: number;
-  paymentReminderDate?: string;
-}
-
-export interface Supplier {
-  id: string;
-  name: string;
-  contactPerson?: string;
-  phone: string;
-  address: string;
-  gstin?: string;
-  area?: string;
-  subArea?: string;
-  email?: string;
-  remarks?: string;
-  outstandingBalance: number;
-  paymentReminderDate?: string;
-}
-
-export interface OtherParty {
-  id: string;
-  name: string;
-  type: 'EMPLOYEE' | 'PARTNER' | 'OTHER';
-  phone?: string;
-  outstandingBalance: number;
-  remarks?: string;
-  // Payroll specific fields
-  monthlySalary?: number;
-  salaryCycleDate?: number; // Day of month (1-31)
-  designation?: string;
-  joiningDate?: string;
-  weeklyOffDay?: 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
-  salaryDueDate?: number;
-}
-
-export interface InvoiceItem {
-  productId: string;
-  productName: string;
+  date: string; // Entry Date (ISO)
+  exitDate?: string; // Exit Date (ISO)
+  symbol: string;
+  type: TradeType;
+  entryPrice: number;
+  exitPrice?: number; // Optional for Open trades
   quantity: number;
-  rate: number;
-  hsn: string;
-  gstRate: number;
-  cgst: number;
-  sgst: number;
-  igst: number;
-  amount: number;
-  serialNumber?: string;
+  stopLoss: number;
+  takeProfit: number;
+  pnl?: number; // Optional for Open trades
+  outcome: Outcome;
+  setup: string; // e.g., "Breakout", "Reversal"
+  
+  // Lifecycle Fields
+  plan?: string; // "Inside the Trade" / Hypothesis
+  notes: string; // General notes
+  
+  // Psychology
+  emotionsEntry?: Emotion[];
+  emotionsExit?: Emotion[];
+  emotions: Emotion[]; // Deprecated, kept for backward compatibility
+
+  // Post-Trade Analysis
+  learnings?: string;
+  mistakes?: string;
+  executionRating?: number; // 1 to 5
+  
+  screenshotUrl?: string;
 }
 
-export interface Invoice {
-  id: string;
-  invoiceNo: string;
+export interface DailyStats {
   date: string;
-  partyId: string;
-  partyName: string;
-  partyPhone?: string;
-  partyAddress?: string;
-  partyArea?: string;
-  partySubArea?: string;
-  items: InvoiceItem[];
-  subTotal: number;
-  totalGst: number;
-  grandTotal: number;
-  amountPaid: number;
-  type: 'SALE' | 'PURCHASE';
-  subType?: 'TAX_INVOICE' | 'DELIVERY_CHALLAN' | 'PROFORMA_INVOICE';
-  paymentMode: 'CASH' | 'BANK' | 'UPI' | 'CHEQUE';
-  // Enhanced Fields
-  isIgst?: boolean;
-  roundOff?: number;
-  bankDetails?: {
-    bankName: string;
-    accNo: string;
-    ifsc: string;
-    branch: string;
-  };
-  terms?: string;
-  extraFields?: {
-    ewayBill?: string;
-    vehicleNo?: string;
-    poNo?: string;
-    customerCare?: string;
-  };
+  totalTrades: number;
+  winRate: number;
+  totalPnL: number;
+  bestTrade: number;
+  worstTrade: number;
 }
 
-export interface Transaction {
+export interface Task {
   id: string;
-  date: string;
-  description: string;
-  amount: number;
-  type: 'DEBIT' | 'CREDIT';
-  category: string; 
-}
-
-export type CrmStage = 'NEW' | 'QUALIFIED' | 'PROPOSITION' | 'WON';
-
-export interface Opportunity {
-  id: string;
-  title: string;
-  customerId: string;
-  customerName: string;
-  expectedRevenue: number;
-  probability: number;
-  stage: CrmStage;
-  priority: 1 | 2 | 3;
-  date: string;
-  notes?: string;
-  tags?: string[];
-}
-
-export interface Inquiry {
-  id: string;
-  date: string;
-  customerId: string;
-  customerName: string;
-  productId: string;
-  productName: string;
-  status: 'OPEN' | 'CONVERTED' | 'LOST';
-  notes: string;
-}
-
-export interface WalkInRecord {
-  id: string;
-  date: string;
-  count: number;
-  remarks: string;
-  productName?: string;
-  price?: number;
-}
-
-export type BudgetPeriod = 'ANNUAL' | 'QUARTERLY' | 'MONTHLY' | 'WEEKLY' | 'DAILY';
-
-export interface BudgetGoal {
-  id: string;
-  category: string;
-  subCategory?: string; // New: Specific point/item within the pillar
-  amount: number;
-  essentialAmount: number; // Smart split for essential vs optional
-  period: BudgetPeriod;
-}
-
-export type PriorityLevel = 'HIGH' | 'MEDIUM' | 'LOW';
-
-export interface PlannedTask {
-  id: string;
-  date: string; // ISO string (Date only)
-  time?: string; // Format HH:MM
-  title: string;
-  description?: string;
-  priority: PriorityLevel;
-  status: 'PENDING' | 'COMPLETED';
-  projectId?: string; // Optional: Link to project
-}
-
-export interface DailyNote {
+  text: string;
+  completed: boolean;
   date: string; // YYYY-MM-DD
+  time?: string; // HH:MM for reminders
+  notified?: boolean;
+}
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD
+  time?: string;
+  impact: 'HIGH' | 'MEDIUM' | 'LOW';
+  notified?: boolean;
+}
+
+export interface Note {
+  id: string;
+  title: string;
   content: string;
-}
-
-export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
-
-export interface Project {
-  id: string;
-  name: string;
-  description?: string;
-  startDate: string;
-  endDate: string;
-  status: ProjectStatus;
-  color: string;
-}
-
-export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'WEEKLY_OFF' | 'HOLIDAY';
-
-export interface AttendanceRecord {
-  id: string;
-  employeeId: string;
-  date: string; // ISO Date YYYY-MM-DD
-  status: AttendanceStatus;
-}
-
-export interface AppData {
-  auth: AuthState;
-  companyProfile: CompanyProfile;
-  products: Product[];
-  customers: Customer[];
-  suppliers: Supplier[];
-  others: OtherParty[];
-  invoices: Invoice[];
-  transactions: Transaction[];
-  inquiries: Inquiry[];
-  opportunities: Opportunity[];
-  walkInRecords: WalkInRecord[];
-  productCategories: string[];
-  budgetGoals: BudgetGoal[];
-  plannedTasks: PlannedTask[];
-  dailyNotes: DailyNote[];
-  projects: Project[];
-  attendance: AttendanceRecord[];
+  date: string; // ISO String
+  lastModified: string; // ISO String
 }
