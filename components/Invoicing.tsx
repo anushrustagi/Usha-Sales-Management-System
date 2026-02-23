@@ -98,8 +98,18 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
 
   const remainingBalance = useMemo(() => totals.grandTotal - amountPaid, [totals.grandTotal, amountPaid]);
 
+  const enrichInvoice = (inv: Invoice) => {
+      if (!inv.partyGstin && inv.partyId && inv.partyId !== 'WALKIN') {
+          const party = (type === 'SALE' ? data.customers : data.suppliers).find(p => p.id === inv.partyId);
+          if (party?.gstin) {
+              return { ...inv, partyGstin: party.gstin };
+          }
+      }
+      return inv;
+  };
+
   const handlePrint = (invoice: Invoice | null) => {
-    setViewingInvoice(invoice || {
+    const invoiceToView = invoice ? enrichInvoice(invoice) : {
         id: 'PREVIEW', invoiceNo, date: invoiceDate, partyId: selectedPartyId || 'WALKIN',
         partyName: selectedParty?.name || manualName || 'Walk-in Customer',
         partyPhone: selectedParty?.phone || manualPhone,
@@ -112,7 +122,9 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
         subType, isIgst, roundOff: totals.roundOff,
         bankDetails, terms, extraFields,
         shippingDetails: enableShipping ? { name: shipName, address: shipAddress, gstin: shipGstin } : undefined
-    });
+    };
+
+    setViewingInvoice(invoiceToView);
     setTimeout(() => window.print(), 100);
   };
 
@@ -124,7 +136,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
     }
 
     window.scrollTo(0,0);
-    setViewingInvoice(invoice);
+    setViewingInvoice(enrichInvoice(invoice));
     setIsGeneratingPdf(true);
     
     setTimeout(() => {
