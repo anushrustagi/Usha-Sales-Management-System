@@ -462,7 +462,9 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                                 <p className="leading-tight">{viewingInvoice.partyAddress || 'No Address Provided'}</p>
                                 <p>Ph: {viewingInvoice.partyPhone}</p>
                                 {viewingInvoice.partyArea && <p>Area: {viewingInvoice.partyArea} {viewingInvoice.partySubArea ? `, ${viewingInvoice.partySubArea}` : ''}</p>}
-                                {viewingInvoice.partyGstin && <p className="font-bold">GSTIN: {viewingInvoice.partyGstin}</p>}
+                                {(viewingInvoice.partyGstin || (viewingInvoice.partyId !== 'WALKIN' && (viewingInvoice.type === 'SALE' ? data.customers : data.suppliers).find(p => p.id === viewingInvoice.partyId)?.gstin)) && (
+                                    <p className="font-bold">GSTIN: {viewingInvoice.partyGstin || (viewingInvoice.type === 'SALE' ? data.customers : data.suppliers).find(p => p.id === viewingInvoice.partyId)?.gstin}</p>
+                                )}
                             </div>
                         </div>
 
