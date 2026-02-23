@@ -463,7 +463,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                                 <p>Ph: {viewingInvoice.partyPhone}</p>
                                 {viewingInvoice.partyArea && <p>Area: {viewingInvoice.partyArea} {viewingInvoice.partySubArea ? `, ${viewingInvoice.partySubArea}` : ''}</p>}
                                 {(viewingInvoice.partyGstin || (viewingInvoice.partyId !== 'WALKIN' && (viewingInvoice.type === 'SALE' ? data.customers : data.suppliers).find(p => p.id === viewingInvoice.partyId)?.gstin)) && (
-                                    <p className="font-bold">GSTIN: {viewingInvoice.partyGstin || (viewingInvoice.type === 'SALE' ? data.customers : data.suppliers).find(p => p.id === viewingInvoice.partyId)?.gstin}</p>
+                                    <p className="font-bold">GSTIN: {(viewingInvoice.partyGstin || (viewingInvoice.type === 'SALE' ? data.customers : data.suppliers).find(p => p.id === viewingInvoice.partyId)?.gstin)?.toUpperCase()}</p>
                                 )}
                             </div>
                         </div>
@@ -475,7 +475,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                                 <h3 className="text-base font-black text-slate-900 mb-1 uppercase">{viewingInvoice.shippingDetails.name}</h3>
                                 <div className="text-xs font-medium text-slate-500 space-y-0.5">
                                     <p className="leading-tight">{viewingInvoice.shippingDetails.address}</p>
-                                    {viewingInvoice.shippingDetails.gstin && <p>GSTIN: {viewingInvoice.shippingDetails.gstin}</p>}
+                                    {viewingInvoice.shippingDetails.gstin && <p>GSTIN: {viewingInvoice.shippingDetails.gstin.toUpperCase()}</p>}
                                 </div>
                             </div>
                         )}
