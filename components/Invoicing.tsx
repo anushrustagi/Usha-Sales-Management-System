@@ -106,6 +106,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
         partyAddress: selectedParty?.address || manualAddress,
         partyArea: selectedParty?.area || manualArea,
         partySubArea: selectedParty?.subArea || manualSubArea,
+        partyGstin: selectedParty?.gstin || manualGstin, // Include GSTIN for preview
         items, subTotal: totals.subTotal, totalGst: totals.totalGst, grandTotal: totals.grandTotal,
         amountPaid, type, paymentMode,
         subType, isIgst, roundOff: totals.roundOff,
@@ -187,13 +188,14 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
     const partyAddress = isManual ? manualAddress : selectedParty?.address;
     const partyArea = isManual ? manualArea : selectedParty?.area;
     const partySubArea = isManual ? manualSubArea : selectedParty?.subArea;
+    const partyGstin = isManual ? manualGstin : selectedParty?.gstin;
 
     const invoiceId = editingInvoice ? editingInvoice.id : Math.random().toString(36).substr(2, 9);
     
     const newInvoice: Invoice = {
       id: invoiceId, invoiceNo, date: new Date(invoiceDate).toISOString(), 
       partyId: selectedPartyId || 'WALKIN',
-      partyName, partyPhone, partyAddress, partyArea, partySubArea, items, 
+      partyName, partyPhone, partyAddress, partyArea, partySubArea, partyGstin, items, 
       subTotal: totals.subTotal, totalGst: totals.totalGst, grandTotal: totals.grandTotal,
       amountPaid, type, subType, paymentMode,
       isIgst, roundOff: totals.roundOff,
@@ -271,6 +273,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
        setManualAddress(inv.partyAddress || '');
        setManualArea(inv.partyArea || '');
        setManualSubArea(inv.partySubArea || '');
+       setManualGstin(inv.partyGstin || '');
     } else {
        setSelectedPartyId(inv.partyId);
     }
@@ -447,6 +450,7 @@ const Invoicing: React.FC<InvoicingProps> = ({ data, updateData, type }) => {
                                 <p className="leading-tight">{viewingInvoice.partyAddress || 'No Address Provided'}</p>
                                 <p>Ph: {viewingInvoice.partyPhone}</p>
                                 {viewingInvoice.partyArea && <p>Area: {viewingInvoice.partyArea} {viewingInvoice.partySubArea ? `, ${viewingInvoice.partySubArea}` : ''}</p>}
+                                {viewingInvoice.partyGstin && <p className="font-bold">GSTIN: {viewingInvoice.partyGstin}</p>}
                             </div>
                         </div>
 

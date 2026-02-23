@@ -126,6 +126,7 @@ export interface Invoice {
   partyAddress?: string;
   partyArea?: string;
   partySubArea?: string;
+  partyGstin?: string; // New: Store Party GSTIN on invoice
   items: InvoiceItem[];
   subTotal: number;
   totalGst: number;
