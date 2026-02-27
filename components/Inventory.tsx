@@ -155,7 +155,10 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
                     </div>
                   </td>
                   <td className="px-6 py-8"><div className="flex flex-col gap-1"><span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase border flex items-center gap-2 w-fit ${ageing.color}`}>{ageing.icon} {ageing.label}</span><p className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter ml-1">{ageing.desc}</p></div></td>
-                  <td className="px-6 py-8 text-right font-black text-slate-900 tabular-nums">₹{p.salePrice.toLocaleString()}</td>
+                  <td className="px-6 py-8 text-right">
+                     <div className="font-black text-slate-900 tabular-nums">₹{p.salePrice.toLocaleString()}</div>
+                     <div className="text-[9px] font-bold text-slate-400 uppercase mt-1">Tax: {p.gstRate}%</div>
+                  </td>
                   <td className="px-10 py-8">
                      <div className="flex justify-center gap-2">
                         <button onClick={() => { setHistoryProduct(p); setShowHistoryModal(true); }} className="p-2.5 bg-white text-slate-300 hover:text-indigo-600 rounded-xl border border-slate-100 shadow-sm transition-all active:scale-90" title="View History"><History size={16}/></button>
@@ -202,8 +205,9 @@ const Inventory: React.FC<InventoryProps> = ({ data, updateData, initialFilter }
                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Current Stock</label><input type="number" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold bg-slate-50 outline-none focus:border-blue-500 shadow-inner" value={editingProduct?.stock || 0} onChange={e => setEditingProduct(prev => prev ? {...prev, stock: Number(e.target.value)} : null)} /></div>
                    <div className="space-y-3"><label className="text-[10px] font-black text-rose-400 uppercase tracking-widest ml-1">Low-stock Alert</label><input type="number" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-bold bg-slate-50 outline-none focus:border-rose-500 shadow-inner" value={editingProduct?.minStockAlert || 5} onChange={e => setEditingProduct(prev => prev ? {...prev, minStockAlert: Number(e.target.value)} : null)} /></div>
                 </div>
-                <div className="grid grid-cols-2 gap-8">
+                <div className="grid grid-cols-3 gap-8">
                    <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Selling Rate (₹)</label><input type="number" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-black bg-slate-50 outline-none focus:border-emerald-500 shadow-inner" value={editingProduct?.salePrice || 0} onChange={e => setEditingProduct(prev => prev ? {...prev, salePrice: Number(e.target.value)} : null)} /></div>
+                   <div className="space-y-3"><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tax Rate (%)</label><input type="number" className="w-full border-2 border-slate-100 rounded-2xl p-5 text-sm font-black bg-slate-50 outline-none focus:border-blue-500 shadow-inner" value={editingProduct?.gstRate || 0} onChange={e => setEditingProduct(prev => prev ? {...prev, gstRate: Number(e.target.value)} : null)} /></div>
                    <div className="space-y-3">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Product Category</label>
                       <div className="relative">
