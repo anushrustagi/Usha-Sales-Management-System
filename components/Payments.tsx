@@ -23,6 +23,7 @@ const Payments: React.FC<PaymentsProps> = ({ data, updateData }) => {
   const [payPartyId, setPayPartyId] = useState('');
   const [payAmount, setPayAmount] = useState('');
   const [payRemarks, setPayRemarks] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMode, setPaymentMode] = useState<'CASH' | 'BANK' | 'UPI' | 'CHEQUE'>('CASH');
   const [isSalaryDisbursal, setIsSalaryDisbursal] = useState(false);
   const [expenseCategory, setExpenseCategory] = useState('Payment');
@@ -134,7 +135,7 @@ const Payments: React.FC<PaymentsProps> = ({ data, updateData }) => {
 
     const newTx: Transaction = {
       id: editingTxId || Math.random().toString(36).substr(2, 9),
-      date: new Date().toISOString(),
+      date: new Date(paymentDate).toISOString(),
       description: txDescription,
       amount: amountNum,
       type: payType === 'COLLECT' ? 'CREDIT' : 'DEBIT',
@@ -167,6 +168,7 @@ const Payments: React.FC<PaymentsProps> = ({ data, updateData }) => {
     setPayAmount(tx.amount.toString());
     setPayType(tx.type === 'CREDIT' ? 'COLLECT' : 'PAY');
     setPayRemarks(tx.description);
+    setPaymentDate(tx.date.split('T')[0]);
     setEditingTxId(tx.id);
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -226,7 +228,7 @@ const Payments: React.FC<PaymentsProps> = ({ data, updateData }) => {
     }
   };
 
-  const resetForm = () => { setPayAmount(''); setPayRemarks(''); setPayPartyId(''); setIsSalaryDisbursal(false); setExpenseCategory('Payment'); setPaymentMode('CASH'); setEditingTxId(null); };
+  const resetForm = () => { setPayAmount(''); setPayRemarks(''); setPayPartyId(''); setIsSalaryDisbursal(false); setExpenseCategory('Payment'); setPaymentMode('CASH'); setEditingTxId(null); setPaymentDate(new Date().toISOString().split('T')[0]); };
 
   const calculateMonthlyPayable = (employee: OtherParty, year: number, month: number) => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -310,6 +312,10 @@ const Payments: React.FC<PaymentsProps> = ({ data, updateData }) => {
               </div>
             </div>
             <div className="space-y-6 pt-4 border-t border-slate-50">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center mb-1 px-1"><label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Transaction Date</label></div>
+                <input type="date" className="w-full border-2 border-slate-50 rounded-2xl p-5 text-sm font-bold outline-none focus:border-blue-500 bg-slate-50 shadow-inner" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} />
+              </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center mb-1 px-1"><label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">Target Account</label></div>
                 <select disabled={!!editingTxId} className="w-full border-2 border-slate-50 rounded-2xl p-5 text-sm font-bold outline-none focus:border-blue-500 bg-slate-50 shadow-inner appearance-none disabled:opacity-50" value={payPartyId} onChange={e => setPayPartyId(e.target.value)}>
